@@ -219,6 +219,25 @@ class AgentRuntimeWireTest {
     }
 
     @Test
+    fun runResultRoundTripPreservesRequestPayload() {
+        val original = AgentRuntimeWire.RunResult(
+            runId = "test-run",
+            ok = false,
+            content = "",
+            error = "模型接口返回 HTTP 400",
+            requestPayload = """{"model":"test-model","messages":[{"role":"user","content":"hi"}]}""",
+        )
+
+        val bundle = AgentRuntimeWire.toBundle(original)
+        val restored = AgentRuntimeWire.runResultFromBundle(bundle)
+
+        assertEquals(original.runId, restored.runId)
+        assertEquals(original.ok, restored.ok)
+        assertEquals(original.error, restored.error)
+        assertEquals(original.requestPayload, restored.requestPayload)
+    }
+
+    @Test
     fun runRequestBundleRoundTripPreservesConfigHistoryAndImages() {
         val request = AgentRuntimeWire.RunRequest(
             runId = "run-1",

@@ -140,6 +140,7 @@ class AgentConversationStoreTest {
             id = "assistant-run-1-1",
             code = SystemNoticeCode.RuntimeFailed,
             detail = "upstream timeout",
+            requestPayload = "{\"model\":\"test\"}",
         )
         runBlocking {
             AgentConversationStore.save(

@@ -51,9 +51,8 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
             .also { CustomHeaderFilter.mergeInto(it, config.customHeaders) }
             .build()
 
-        val requestBody = buildRequestJson(config, request.messages, request.tools)
-            .toString()
-            .toRequestBody(JSON_MEDIA_TYPE)
+        val requestJsonString = buildRequestJson(config, request.messages, request.tools).toString()
+        val requestBody = requestJsonString.toRequestBody(JSON_MEDIA_TYPE)
 
         val httpRequest = Request.Builder()
             .url(url)
@@ -75,7 +74,10 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
 
                 if (!response.isSuccessful) {
                     val errorBody = response.body.string()
-                    error("模型接口返回 HTTP $code：${errorBody.compactError()}")
+                    throw AgentProviderRequestException(
+                        message = "模型接口返回 HTTP $code：${errorBody.compactError()}",
+                        requestPayload = requestJsonString,
+                    )
                 }
 
                 val assistantMessage = readStreamingAssistantMessage(response.body.byteStream(), runController, onEvent)

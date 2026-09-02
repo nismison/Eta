@@ -250,6 +250,7 @@ internal class AgentRuntimeRunExecutor(
                 error = message,
                 reasoningContent = modelFailure?.reasoningContent.orEmpty(),
                 transcript = modelFailure?.transcript.orEmpty(),
+                requestPayload = modelFailure?.requestPayload,
             )
         } finally {
             runCatching { toolsBinding?.close() }

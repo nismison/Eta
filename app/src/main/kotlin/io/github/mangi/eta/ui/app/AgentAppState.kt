@@ -1921,6 +1921,7 @@ internal class AgentAppState(
                 runId,
                 SystemNoticeCode.RuntimeFailed,
                 result.error,
+                result.requestPayload,
             )
         }
         setConversationStreaming(runId, false)
@@ -2028,17 +2029,18 @@ internal class AgentAppState(
         runId: String,
         code: SystemNoticeCode,
         detail: String? = null,
+        requestPayload: String? = null,
     ) {
         updateMessages(runId) { messages ->
             val targetIndex = messages.indexOfLast { message ->
                 message is AgentMessageUi && message.id.startsWith(assistantMessagePrefix(runId))
             }
             if (targetIndex < 0) {
-                messages + SystemNoticeMessageUi(assistantFallbackMessageId(runId), code, detail)
+                messages + SystemNoticeMessageUi(assistantFallbackMessageId(runId), code, detail, requestPayload)
             } else {
                 messages.mapIndexed { index, message ->
                     if (index == targetIndex && message is AgentMessageUi) {
-                        SystemNoticeMessageUi(message.id, code, detail)
+                        SystemNoticeMessageUi(message.id, code, detail, requestPayload)
                     } else {
                         message
                     }

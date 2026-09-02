@@ -61,6 +61,7 @@ data class SystemNoticeMessageUi(
     override val id: String,
     val code: SystemNoticeCode,
     val detail: String? = null,
+    val requestPayload: String? = null,
 ) : AgentChatMessageUi
 
 @Immutable

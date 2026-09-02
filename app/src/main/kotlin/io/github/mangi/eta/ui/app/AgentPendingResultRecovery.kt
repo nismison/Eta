@@ -71,6 +71,7 @@ internal object AgentPendingResultRecovery {
                     id = "assistant-$runId-1",
                     code = SystemNoticeCode.RuntimeFailed,
                     detail = result.error,
+                    requestPayload = result.requestPayload,
                 )
             }
             if (assistantIndex >= 0) {

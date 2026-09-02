@@ -216,6 +216,7 @@ internal object AgentConversationStore {
                 type = TYPE_SYSTEM_NOTICE,
                 content = code.wireValue,
                 resultSummary = detail,
+                toolsJson = requestPayload ?: "[]",
                 renderMarkdown = false,
             )
 
@@ -281,6 +282,7 @@ internal object AgentConversationStore {
                     id = id,
                     code = code,
                     detail = resultSummary,
+                    requestPayload = toolsJson.takeIf { it.isNotBlank() && it != "[]" },
                 )
             }
 

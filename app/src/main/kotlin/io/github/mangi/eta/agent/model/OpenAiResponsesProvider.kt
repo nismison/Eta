@@ -36,9 +36,8 @@ internal object OpenAiResponsesProvider : AgentProviderClient {
         require(config.openAiEndpointMode == OpenAiEndpointMode.RESPONSES) {
             "当前 Provider 未配置为 Responses API"
         }
-        val body = buildRequestJson(config, request.messages, request.tools)
-            .toString()
-            .toRequestBody(JSON_MEDIA_TYPE)
+        val requestJsonString = buildRequestJson(config, request.messages, request.tools).toString()
+        val body = requestJsonString.toRequestBody(JSON_MEDIA_TYPE)
         val headers = okhttp3.Headers.Builder()
             .add("Content-Type", "application/json; charset=utf-8")
             .add("Accept", "text/event-stream")
@@ -62,7 +61,10 @@ internal object OpenAiResponsesProvider : AgentProviderClient {
                 onEvent(ProviderEvent.ResponseHeaders(response.code))
                 runController.throwIfCancelled()
                 if (!response.isSuccessful) {
-                    error("模型接口返回 HTTP ${response.code}：${response.body.string().compactError()}")
+                    throw AgentProviderRequestException(
+                        message = "模型接口返回 HTTP ${response.code}：${response.body.string().compactError()}",
+                        requestPayload = requestJsonString,
+                    )
                 }
                 val assistant = readStreamingResponse(
                     stream = response.body.byteStream(),

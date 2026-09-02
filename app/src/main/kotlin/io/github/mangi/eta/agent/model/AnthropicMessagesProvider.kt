@@ -46,14 +46,11 @@ internal object AnthropicMessagesProvider : AgentProviderClient {
                 CustomHeaderFilter.mergeInto(this, config.customHeaders)
             }
             .build()
+        val requestJsonString = buildRequestJson(config, request.messages, request.tools).toString()
         val httpRequest = Request.Builder()
             .url(ProviderUrls.anthropicMessagesUrl(config.baseUrl))
             .headers(headers)
-            .post(
-                buildRequestJson(config, request.messages, request.tools)
-                    .toString()
-                    .toRequestBody(JSON_MEDIA_TYPE)
-            )
+            .post(requestJsonString.toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
         val call = AgentHttpClient.client.newCall(httpRequest)
@@ -66,7 +63,10 @@ internal object AnthropicMessagesProvider : AgentProviderClient {
                 runController.throwIfCancelled()
                 if (!response.isSuccessful) {
                     val errorBody = response.body.string()
-                    error("Anthropic 接口返回 HTTP ${response.code}：${errorBody.compactError()}")
+                    throw AgentProviderRequestException(
+                        message = "Anthropic 接口返回 HTTP ${response.code}：${errorBody.compactError()}",
+                        requestPayload = requestJsonString,
+                    )
                 }
                 val assistant = readStreamingAssistantMessage(response.body.byteStream(), runController, onEvent)
                 onEvent(ProviderEvent.Completed(assistant.optString("finish_reason").ifBlank { null }))

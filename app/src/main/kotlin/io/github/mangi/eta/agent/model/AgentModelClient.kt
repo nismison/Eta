@@ -276,4 +276,5 @@ internal class AgentModelExecutionException(
     cause: Throwable,
     val reasoningContent: String,
     val transcript: List<AgentModelClient.ConversationMessage>,
+    val requestPayload: String? = (cause as? AgentProviderRequestException)?.requestPayload,
 ) : RuntimeException(cause.message ?: cause.javaClass.simpleName, cause)

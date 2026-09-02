@@ -170,6 +170,7 @@ import top.yukonga.miuix.kmp.basic.rememberTooltipState
 import top.yukonga.miuix.kmp.squircle.squircleBorder
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.window.WindowDialog
 
 @Composable
 internal fun rememberDataUrlBitmap(dataUrl: String) = remember(dataUrl) {
@@ -298,6 +299,7 @@ internal fun ChatMessageItem(
                 },
                 renderMarkdown = false,
             ),
+            requestPayload = message.requestPayload,
             retainedStreamingState = null,
             showCopyAction = showCopyAction,
             showMessageActions = showMessageActions,
@@ -650,6 +652,7 @@ private fun AgentMessageBlock(
     onDelete: () -> Unit,
     onRegenerate: () -> Unit,
     modifier: Modifier = Modifier,
+    requestPayload: String? = null,
 ) {
     @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
@@ -671,6 +674,8 @@ private fun AgentMessageBlock(
             copied = false
         }
     }
+
+    var showPayloadDialog by remember(message.id) { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -748,6 +753,22 @@ private fun AgentMessageBlock(
                         },
                     )
                 }
+                if (requestPayload != null && requestPayload.isNotBlank()) {
+                    TooltipBox(text = stringResource(R.string.system_notice_view_request_details)) {
+                        IconButton(
+                            onClick = { showPayloadDialog = true },
+                            minWidth = 30.dp,
+                            minHeight = 30.dp,
+                        ) {
+                            Icon(
+                                painter = painterResource(LucideR.drawable.lucide_ic_info),
+                                contentDescription = stringResource(R.string.system_notice_view_request_details),
+                                modifier = Modifier.size(15.dp),
+                                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.75f),
+                            )
+                        }
+                    }
+                }
                 if (showMessageActions) {
                     TooltipBox(text = stringResource(R.string.ui_regenerate_2e1905), enabled = messageActionsEnabled) {
                         IconButton(
@@ -780,6 +801,61 @@ private fun AgentMessageBlock(
                         }
                     }
                 }
+            }
+        }
+    }
+
+    if (showPayloadDialog && !requestPayload.isNullOrBlank()) {
+        val prettyPayload = remember(requestPayload) {
+            runCatching {
+                val tokener = org.json.JSONTokener(requestPayload)
+                when (val value = tokener.nextValue()) {
+                    is org.json.JSONObject -> value.toString(2)
+                    is org.json.JSONArray -> value.toString(2)
+                    else -> requestPayload
+                }
+            }.getOrDefault(requestPayload)
+        }
+        var payloadCopied by remember { mutableStateOf(false) }
+        LaunchedEffect(payloadCopied) {
+            if (payloadCopied) {
+                kotlinx.coroutines.delay(1_400)
+                payloadCopied = false
+            }
+        }
+
+        WindowDialog(
+            show = true,
+            title = stringResource(R.string.system_notice_request_details_title),
+            onDismissRequest = { showPayloadDialog = false },
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+            ) {
+                ChatCodeBlock(
+                    code = prettyPayload,
+                    language = "json",
+                    style = TextStyle(
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = MiuixTheme.colorScheme.onSurface,
+                    ),
+                )
+                MiuixDialogActions(
+                    confirmText = stringResource(R.string.action_close),
+                    cancelText = stringResource(
+                        if (payloadCopied) R.string.copy_copied else R.string.copy_code
+                    ),
+                    onCancel = {
+                        @Suppress("DEPRECATION")
+                        clipboardManager.setText(AnnotatedString(prettyPayload))
+                        payloadCopied = true
+                    },
+                    onConfirm = { showPayloadDialog = false },
+                    modifier = Modifier.padding(top = 12.dp),
+                )
             }
         }
     }

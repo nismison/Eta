@@ -120,6 +120,7 @@ internal object AgentRuntimeWire {
     private const val KEY_CONTENT = "content"
     private const val KEY_REASONING_CONTENT = "reasoning_content"
     private const val KEY_ERROR = "error"
+    private const val KEY_REQUEST_PAYLOAD = "request_payload"
     private const val KEY_RESULT = "result"
     private const val KEY_TRANSCRIPT_JSON = "transcript_json"
     private const val KEY_HANDOFF = "handoff"
@@ -180,6 +181,7 @@ internal object AgentRuntimeWire {
         val error: String? = null,
         val reasoningContent: String = "",
         val transcript: List<AgentModelClient.ConversationMessage> = emptyList(),
+        val requestPayload: String? = null,
     )
 
     data class EntryHandoff(
@@ -456,6 +458,12 @@ internal object AgentRuntimeWire {
         )
         putString(KEY_ERROR, error?.boundedText(MAX_DRAIN_CONTENT_CHARS))
         putString(
+            KEY_REQUEST_PAYLOAD,
+            requestPayload?.boundedText(
+                if (compactForDrain) MAX_DRAIN_CONTENT_CHARS else MAX_RESULT_CONTENT_CHARS
+            ),
+        )
+        putString(
             KEY_TRANSCRIPT_JSON,
             if (compactForDrain) {
                 AgentConversationCodec.encodeTranscriptForDrain(transcript)
@@ -473,6 +481,7 @@ internal object AgentRuntimeWire {
             error = bundle.getString(KEY_ERROR),
             reasoningContent = bundle.getString(KEY_REASONING_CONTENT).orEmpty(),
             transcript = AgentConversationCodec.decodeTranscript(bundle.getString(KEY_TRANSCRIPT_JSON)),
+            requestPayload = bundle.getString(KEY_REQUEST_PAYLOAD),
         )
 
     fun toBundle(completedRun: CompletedRun): Bundle = completedRun.toBundle(compactForDrain = false)

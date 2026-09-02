@@ -38,6 +38,12 @@ internal data class ProviderRequest(
     val tools: JSONArray
 )
 
+internal class AgentProviderRequestException(
+    message: String,
+    val requestPayload: String?,
+    cause: Throwable? = null,
+) : IllegalStateException(message, cause)
+
 internal data class ProviderResponse(
     val assistantMessage: JSONObject
 ) {
