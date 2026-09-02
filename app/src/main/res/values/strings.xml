@@ -1110,6 +1110,8 @@
   <string name="chat_stop">Stop</string>
   <string name="chat_send">Send</string>
   <string name="chat_reasoning_effort">Reasoning effort: %1$s</string>
+  <string name="chat_skill_pinned">Target Skill: %1$s</string>
+  <string name="chat_skill_auto">Auto (On demand)</string>
   <string name="status_unsupported">Unsupported</string>
   <string name="attachment_image">Image</string>
   <string name="attachment_file">File</string>

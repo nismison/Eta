@@ -50,6 +50,7 @@ data class SkillCompatibilityResult(
 @Immutable
 data class SkillContext(
     val installedSkills: List<SkillIndexEntry> = emptyList(),
+    val pinnedSkillId: String? = null,
 ) {
     companion object {
         val EMPTY = SkillContext()

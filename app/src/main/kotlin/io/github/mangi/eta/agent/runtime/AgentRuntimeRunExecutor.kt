@@ -86,6 +86,7 @@ internal class AgentRuntimeRunExecutor(
             val skillContext = SkillContext(
                 installedSkills = skillIndexService.listInstalledSkills()
                     .filter { SkillCompatibilityChecker.evaluate(it).available },
+                pinnedSkillId = request.pinnedSkillId,
             )
             val memoryEnabled = runBlocking { AgentMemoryRepository.isEnabled() }
             val memoryContext = if (memoryEnabled) {

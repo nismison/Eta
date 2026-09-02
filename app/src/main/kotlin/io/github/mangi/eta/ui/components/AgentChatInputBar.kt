@@ -103,11 +103,14 @@ internal fun AgentChatInputBar(
     isStreaming: Boolean,
     reasoningEffort: ReasoningEffort,
     availableReasoningEfforts: List<ReasoningEffort>,
+    pinnedSkillId: String? = null,
+    availableSkills: List<io.github.mangi.eta.agent.skill.SkillIndexEntry> = emptyList(),
     pendingImages: List<PendingImageUi>,
     pendingFileReferences: List<PendingFileReferenceUi>,
     isEditingMessage: Boolean,
     editHasLaterTurns: Boolean,
     onReasoningEffortChange: (ReasoningEffort) -> Unit,
+    onSkillPinned: (String?) -> Unit = {},
     onModelSelected: (String) -> Unit,
     onSubmit: (String) -> Unit,
     onStop: () -> Unit,
@@ -289,6 +292,18 @@ internal fun AgentChatInputBar(
                                 onAttachFilePath = onAttachFilePath,
                             )
 
+                            if (availableSkills.isNotEmpty()) {
+                                Spacer(modifier = Modifier.width(2.dp))
+                                AgentSkillPickerButton(
+                                    pinnedSkillId = pinnedSkillId,
+                                    availableSkills = availableSkills,
+                                    enabled = !isStreaming,
+                                    popupAnchorTopPx = inputContainerTopPx,
+                                    popupMaxHeight = thinkingPopupMaxHeight,
+                                    onSkillSelected = onSkillPinned,
+                                )
+                            }
+
                             Spacer(modifier = Modifier.width(2.dp))
 
                             if (availableReasoningEfforts.isNotEmpty()) {
@@ -452,6 +467,93 @@ private fun ThinkingEffortChip(
                         index = index,
                         onSelectedIndexChange = {
                             onEffortChange(option)
+                            dismiss?.invoke()
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 常驻技能选择器：点击弹出已安装技能列表，支持选择指定特定技能或恢复自动按需模式。 */
+@Composable
+private fun AgentSkillPickerButton(
+    pinnedSkillId: String?,
+    availableSkills: List<io.github.mangi.eta.agent.skill.SkillIndexEntry>,
+    enabled: Boolean,
+    popupAnchorTopPx: Int,
+    popupMaxHeight: Dp,
+    onSkillSelected: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var showPopup by remember { mutableStateOf(false) }
+    val isPinned = pinnedSkillId != null
+    val currentSkillName = pinnedSkillId?.let { id ->
+        availableSkills.firstOrNull { it.id == id }?.name
+    } ?: stringResource(R.string.chat_skill_auto)
+
+    LaunchedEffect(enabled) {
+        if (!enabled) showPopup = false
+    }
+    val popupPositionProvider = remember(popupAnchorTopPx) {
+        InputPopupPositionProvider(popupAnchorTopPx)
+    }
+    val contentColor by animateColorAsState(
+        targetValue = if (isPinned) {
+            MiuixTheme.colorScheme.primary
+        } else {
+            MiuixTheme.colorScheme.onSurfaceVariantSummary
+        },
+        animationSpec = tween(durationMillis = 160),
+        label = "skill_button_content",
+    )
+
+    Box(modifier = modifier) {
+        IconButton(
+            onClick = { showPopup = true },
+            enabled = enabled,
+            minWidth = ChatInputActionSize,
+            minHeight = ChatInputActionSize,
+        ) {
+            Icon(
+                painter = painterResource(LucideR.drawable.lucide_ic_bot),
+                contentDescription = stringResource(R.string.chat_skill_pinned, currentSkillName),
+                modifier = Modifier.size(ThinkingIconSize),
+                tint = contentColor,
+            )
+        }
+        WindowListPopup(
+            show = showPopup && enabled && popupAnchorTopPx > 0,
+            popupPositionProvider = popupPositionProvider,
+            alignment = PopupPositionProvider.Align.TopStart,
+            enableWindowDim = false,
+            onDismissRequest = { showPopup = false },
+            maxHeight = popupMaxHeight,
+            minWidth = 200.dp,
+        ) {
+            val dismiss = LocalDismissState.current
+            val totalOptions = availableSkills.size + 1
+            ListPopupColumn {
+                // 自动模式（不锁定特定技能）
+                DropdownImpl(
+                    text = stringResource(R.string.chat_skill_auto),
+                    optionSize = totalOptions,
+                    isSelected = pinnedSkillId == null,
+                    index = 0,
+                    onSelectedIndexChange = {
+                        onSkillSelected(null)
+                        dismiss?.invoke()
+                    },
+                )
+                availableSkills.forEachIndexed { index, skill ->
+                    DropdownImpl(
+                        text = skill.name,
+                        optionSize = totalOptions,
+                        isSelected = skill.id == pinnedSkillId,
+                        index = index + 1,
+                        onSelectedIndexChange = {
+                            onSkillSelected(skill.id)
                             dismiss?.invoke()
                         },
                     )

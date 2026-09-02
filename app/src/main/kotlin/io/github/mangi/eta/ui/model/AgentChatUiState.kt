@@ -14,6 +14,8 @@ internal data class AgentChatUiState(
     val thinkingEnabled: Boolean,
     val reasoningEffort: ReasoningEffort = ReasoningEffort.fromLegacy(thinkingEnabled),
     val availableReasoningEfforts: List<ReasoningEffort> = emptyList(),
+    val pinnedSkillId: String? = null,
+    val availableSkills: List<io.github.mangi.eta.agent.skill.SkillIndexEntry> = emptyList(),
     val pendingImages: List<PendingImageUi> = emptyList(),
     val pendingFileReferences: List<PendingFileReferenceUi> = emptyList(),
     val appliedRuntimeRunIds: List<String> = emptyList(),

@@ -131,6 +131,7 @@ internal object AgentRuntimeWire {
         "handoff_dismiss_entry_surface_on_foreground_operation"
     private const val LEGACY_BREENO_HANDOFF_SOURCE = "breeno"
     private const val KEY_CREATED_AT = "created_at"
+    private const val KEY_PINNED_SKILL_ID = "pinned_skill_id"
     private const val KEY_RESULTS = "results"
     private const val MAX_RESULT_CONTENT_CHARS = 64_000
     private const val MAX_RESULT_REASONING_CHARS = 32_000
@@ -145,6 +146,7 @@ internal object AgentRuntimeWire {
         val config: AgentModelClient.ModelConfig,
         val images: List<AgentModelClient.ModelImage>,
         val history: List<AgentModelClient.ConversationMessage> = emptyList(),
+        val pinnedSkillId: String? = null,
         val handoff: EntryHandoff? = null
     )
 
@@ -268,6 +270,7 @@ internal object AgentRuntimeWire {
         putString(KEY_EXTRA_BODY_JSON, request.config.extraBodyJson)
         putString(KEY_CUSTOM_HEADERS_JSON, json.encodeToString(request.config.customHeaders))
         putString(KEY_CUSTOM_BODY_JSON, json.encodeToString(request.config.customBody))
+        putString(KEY_PINNED_SKILL_ID, request.pinnedSkillId)
         request.handoff?.let { putBundle(KEY_HANDOFF, toBundle(it)) }
         putParcelableArrayList(
             KEY_HISTORY,
@@ -410,6 +413,7 @@ internal object AgentRuntimeWire {
                 )
             },
             images = images,
+            pinnedSkillId = bundle.getString(KEY_PINNED_SKILL_ID),
             handoff = bundle.getBundle(KEY_HANDOFF)?.let(::entryHandoffFromBundle)
         )
 

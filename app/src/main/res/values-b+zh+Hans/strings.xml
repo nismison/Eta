@@ -1094,6 +1094,8 @@
   <string name="chat_stop">停止</string>
   <string name="chat_send">发送</string>
   <string name="chat_reasoning_effort">推理强度，当前为 %1$s</string>
+  <string name="chat_skill_pinned">指定技能：当前为 %1$s</string>
+  <string name="chat_skill_auto">自动（按需调用）</string>
   <string name="status_unsupported">不支持</string>
   <string name="attachment_image">图片</string>
   <string name="attachment_file">文件</string>

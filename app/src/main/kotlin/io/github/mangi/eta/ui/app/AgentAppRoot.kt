@@ -241,6 +241,7 @@ fun AgentAppRoot(
                             when (action) {
                                 is AgentHomeAction.ReasoningEffortChanged ->
                                     agentState.updateReasoningEffort(action.effort)
+                                is AgentHomeAction.SkillPinned -> agentState.pinSkill(action.skillId)
                                 is AgentHomeAction.ModelSelected -> agentState.selectModel(action.modelId)
                                 is AgentHomeAction.SubmitMessage -> agentState.sendCurrentMessage(action.text)
                                 AgentHomeAction.StopRun -> agentState.stopCurrentRun()
@@ -290,6 +291,7 @@ fun AgentAppRoot(
                                 AgentChatAction.NavigateBack -> popRoute()
                                 is AgentChatAction.ReasoningEffortChanged ->
                                     agentState.updateReasoningEffort(action.effort)
+                                is AgentChatAction.SkillPinned -> agentState.pinSkill(action.skillId)
                                 is AgentChatAction.ModelSelected -> agentState.selectModel(action.modelId)
                                 is AgentChatAction.SubmitMessage -> agentState.sendCurrentMessage(action.text)
                                 AgentChatAction.StopRun -> agentState.stopCurrentRun()

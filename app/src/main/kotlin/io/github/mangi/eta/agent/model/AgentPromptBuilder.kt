@@ -129,7 +129,16 @@ internal object AgentPromptBuilder {
     private fun buildSkillSystemMessage(skillContext: SkillContext): JSONObject? {
         val installed = skillContext.installedSkills
         if (installed.isEmpty()) return null
+        val pinnedSkill = skillContext.pinnedSkillId?.let { id ->
+            installed.firstOrNull { it.id == id }
+        }
         val body = buildString {
+            if (pinnedSkill != null) {
+                appendLine("【当前会话已指定核心 Skill】")
+                appendLine("当前对话已被用户显式指定使用 Skill: id=${pinnedSkill.id} | name=${pinnedSkill.name}。")
+                appendLine("你必须以该 Skill 的工作流与目标规范为主导。请优先调用 skills_read 读取该 Skill（id=${pinnedSkill.id}）的正文与具体步骤，并严格遵照其指引执行。")
+                appendLine()
+            }
             appendLine("已启用 Skills 索引（仅元信息，正文按需加载）：")
             installed.forEach { skill ->
                 val capabilities = buildList {
@@ -143,8 +152,9 @@ internal object AgentPromptBuilder {
                     .trim()
                     .let { if (it.length <= 180) it else it.take(180) + "..." }
                     .ifBlank { "无描述" }
+                val marker = if (skill.id == skillContext.pinnedSkillId) " [★当前指定]" else ""
                 appendLine(
-                    "- id=${skill.id} | name=${skill.name} | path=${skill.skillFilePath} | " +
+                    "- id=${skill.id}$marker | name=${skill.name} | path=${skill.skillFilePath} | " +
                         "capabilities=$capabilities | description=$description"
                 )
             }

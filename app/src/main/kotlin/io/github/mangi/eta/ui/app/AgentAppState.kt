@@ -158,6 +158,7 @@ internal class AgentAppState(
     init {
         refreshConversationSummaries()
         observeRuntimeSelection()
+        refreshSkills()
         runtimeRecoveryInProgress.set(true)
         scope.launch(Dispatchers.IO) {
             try {
@@ -728,6 +729,15 @@ internal class AgentAppState(
         if (selectedConversationId != null) persistConversations()
     }
 
+    fun pinSkill(skillId: String?) {
+        updateCurrentConversation(
+            homeState.copy(
+                pinnedSkillId = skillId,
+            )
+        )
+        if (selectedConversationId != null) persistConversations()
+    }
+
     fun selectModel(modelId: String) {
         if (
             homeState.isStreaming ||
@@ -770,6 +780,7 @@ internal class AgentAppState(
             thinkingEnabled = normalized.enablesReasoning,
             reasoningEffort = normalized,
             availableReasoningEfforts = currentReasoningCapabilities?.selectableEfforts.orEmpty(),
+            availableSkills = homeState.availableSkills,
         )
         conversationsById = conversationsById + (conversationId to resolvedState)
         homeState = resolvedState
@@ -781,7 +792,9 @@ internal class AgentAppState(
         if (homeState.messageEdit != null) cancelMessageEdit()
         fileAttachmentOwnerVersion += 1
         selectedConversationId = null
-        homeState = emptyChatState(defaultThinkingEnabled).withCurrentReasoningCapabilities()
+        homeState = emptyChatState(defaultThinkingEnabled).withCurrentReasoningCapabilities().copy(
+            availableSkills = homeState.availableSkills,
+        )
         conversationPaneState = conversationPaneState.copy(
             selectedConversationId = null,
             searchQuery = "",
@@ -1109,6 +1122,7 @@ internal class AgentAppState(
                     config = config,
                     images = modelImages,
                     history = history,
+                    pinnedSkillId = state.pinnedSkillId,
                     handoff = AgentRuntimeWire.EntryHandoff(
                         id = runId,
                         source = AgentRuntimeWire.AGENT_UI_HANDOFF_SOURCE,
@@ -1375,8 +1389,10 @@ internal class AgentAppState(
                     capabilities = capabilities,
                 )
             }
+            val availableSkills = entries.filter { it.installed && it.enabled }
             withContext(Dispatchers.Main) {
                 skillsState = skillsState.copy(skills = items, isLoading = false)
+                homeState = homeState.copy(availableSkills = availableSkills)
             }
         }
     }
@@ -2107,6 +2123,8 @@ internal class AgentAppState(
             thinkingEnabled = draft.reasoningEffort.enablesReasoning,
             reasoningEffort = draft.reasoningEffort,
             availableReasoningEfforts = currentReasoningCapabilities?.selectableEfforts.orEmpty(),
+            pinnedSkillId = draft.pinnedSkillId,
+            availableSkills = draft.availableSkills,
             pendingImages = draft.pendingImages,
             pendingFileReferences = draft.pendingFileReferences,
         )
