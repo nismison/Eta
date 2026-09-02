@@ -100,6 +100,67 @@ class SkillPackageInstaller internal constructor(
         )
     }
 
+    /**
+     * 安装单个本地 SKILL.md 文件。
+     *
+     * 将单个 SKILL.md 文件落入独立暂存目录作为 Skill 根目录进行验证与安装。
+     */
+    fun installLocalSkillFile(
+        openStream: () -> InputStream,
+        replaceUserSkill: Boolean = false,
+        expectedReplacementId: String? = null,
+        expectedFileSha256: String? = null,
+        isCancelled: () -> Boolean = { false },
+    ): SkillInstallResult = withSkillFile(openStream, isCancelled) { operation, skillDirectory ->
+        val candidates = discoverCandidates(skillDirectory, skillDirectory, isCancelled)
+        if (candidates.isEmpty()) {
+            fail(
+                SkillInstallErrorCode.NO_SKILL_FOUND,
+                "未找到 SKILL.md",
+            )
+        }
+        if (replaceUserSkill) {
+            val expectedId = expectedReplacementId?.trim().orEmpty()
+            val expectedDigest = expectedFileSha256?.trim().orEmpty()
+            if (expectedId.isBlank()) {
+                fail(
+                    SkillInstallErrorCode.INVALID_SELECTION,
+                    "替换用户 Skill 时必须指定已确认的 Skill id",
+                )
+            }
+            if (candidates.single().id != expectedId) {
+                fail(
+                    SkillInstallErrorCode.INVALID_SELECTION,
+                    "重新读取的 SKILL.md 与已确认替换的 Skill 不一致",
+                )
+            }
+            if (!SHA_256_REGEX.matches(expectedDigest)) {
+                fail(
+                    SkillInstallErrorCode.INVALID_SELECTION,
+                    "替换用户 Skill 时必须提供有效的小写 SHA-256",
+                )
+            }
+            if (operation.archiveSha256 != expectedDigest) {
+                fail(
+                    SkillInstallErrorCode.INVALID_SELECTION,
+                    "重新读取的 SKILL.md 内容与已确认文件不一致",
+                )
+            }
+        } else if (expectedReplacementId != null || expectedFileSha256 != null) {
+            fail(
+                SkillInstallErrorCode.INVALID_SELECTION,
+                "仅替换现有用户 Skill 时可指定替换身份与文件摘要",
+            )
+        }
+        installCandidates(
+            operation = operation,
+            candidates = candidates,
+            replaceUserSkills = replaceUserSkill,
+            isCancelled = isCancelled,
+            conflictArchiveSha256 = operation.archiveSha256,
+        )
+    }
+
     /** 检查仓库 ZIP。单一顶层目录按 GitHub codeload 的 envelope 处理。 */
     fun inspectRepositoryZip(
         openStream: () -> InputStream,
@@ -596,6 +657,84 @@ class SkillPackageInstaller internal constructor(
         }
     }
 
+
+    private fun withSkillFile(
+        openStream: () -> InputStream,
+        isCancelled: () -> Boolean,
+        block: (operation: ArchiveOperation, skillDirectory: File) -> SkillInstallResult,
+    ): SkillInstallResult {
+        val operationDir = createOperationDirectory()
+            ?: return SkillInstallResult.Failure(
+                SkillInstallError(SkillInstallErrorCode.IO_ERROR, "无法创建 Skill 安装暂存目录")
+            )
+        val operation = ArchiveOperation(operationDir)
+        return try {
+            val skillDirectory = File(operationDir, "skill")
+            if (!skillDirectory.mkdir()) {
+                fail(SkillInstallErrorCode.IO_ERROR, "无法创建 Skill 暂存目录")
+            }
+            val skillFile = File(skillDirectory, SKILL_FILE_NAME)
+            operation.archiveSha256 = materializeSkillFile(openStream, skillFile, isCancelled)
+            block(operation, skillDirectory)
+        } catch (error: SkillInstallException) {
+            SkillInstallResult.Failure(error.error)
+        } catch (_: SkillRecoveryRequiredException) {
+            SkillInstallResult.Failure(
+                error = SkillInstallError(
+                    SkillInstallErrorCode.COMMIT_FAILED,
+                    "检测到未完成的 Skill 恢复，已停止安装",
+                ),
+                recoveryRequired = true,
+            )
+        } catch (_: IOException) {
+            SkillInstallResult.Failure(
+                SkillInstallError(SkillInstallErrorCode.IO_ERROR, "读取或暂存 SKILL.md 失败")
+            )
+        } catch (_: SecurityException) {
+            SkillInstallResult.Failure(
+                SkillInstallError(SkillInstallErrorCode.IO_ERROR, "没有读取该文件的权限")
+            )
+        } finally {
+            if (!operation.preserveForRecovery) {
+                deleteSkillPathWithoutFollowingLinks(workRoot, operationDir)
+            }
+        }
+    }
+
+    private fun materializeSkillFile(
+        openStream: () -> InputStream,
+        target: File,
+        isCancelled: () -> Boolean,
+    ): String {
+        var total = 0L
+        val digest = MessageDigest.getInstance("SHA-256")
+        checkCancelled(isCancelled)
+        openStream().use { input ->
+            target.outputStream().buffered().use { output ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    checkCancelled(isCancelled)
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    if (total > limits.maxSkillFileBytes) {
+                        fail(
+                            SkillInstallErrorCode.INVALID_SKILL,
+                            "SKILL.md 超过 ${limits.maxSkillFileBytes} 字节限制",
+                        )
+                    }
+                    digest.update(buffer, 0, count)
+                    output.write(buffer, 0, count)
+                }
+            }
+        }
+        if (total == 0L) {
+            fail(SkillInstallErrorCode.INVALID_SKILL, "SKILL.md 为空")
+        }
+        return digest.digest().joinToString(separator = "") { byte ->
+            (byte.toInt() and 0xff).toString(16).padStart(2, '0')
+        }
+    }
     private fun withArchive(
         openStream: () -> InputStream,
         isCancelled: () -> Boolean,

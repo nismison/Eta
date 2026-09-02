@@ -1,4 +1,4 @@
-package io.github.mangi.eta.ui.model
+﻿package io.github.mangi.eta.ui.model
 
 import io.github.mangi.eta.data.model.ReasoningEffort
 
@@ -58,6 +58,7 @@ sealed interface AgentToolsAction {
 sealed interface AgentSkillsAction {
     data object NavigateBack : AgentSkillsAction
     data class ImportZip(val uri: String) : AgentSkillsAction
+    data class ImportSkillFile(val uri: String) : AgentSkillsAction
     data object ConfirmZipReplacement : AgentSkillsAction
     data object CancelZipReplacement : AgentSkillsAction
     data object DismissNotice : AgentSkillsAction

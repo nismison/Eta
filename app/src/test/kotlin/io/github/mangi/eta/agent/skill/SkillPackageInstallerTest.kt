@@ -706,6 +706,72 @@ class SkillPackageInstallerTest {
         assertFalse(File(fixture.skillsRoot, "different-repo-skill").exists())
     }
 
+    @Test
+    fun localSkillFileInstallsSingleSkillFile() {
+        val fixture = fixture("file-success")
+        val skillContent = skill("single-file-skill", "Install from a single SKILL.md file.")
+
+        val result = fixture.installer.installLocalSkillFile({ skillContent.inputStream() })
+
+        val success = result as SkillInstallResult.Success
+        assertEquals(listOf("single-file-skill"), success.installed.map { it.id })
+        assertEquals(
+            String(skillContent),
+            File(fixture.skillsRoot, "single-file-skill/SKILL.md").readText(),
+        )
+        val indexed = fixture.service.listSkillsForManagement(forceRefresh = true)
+            .single { it.id == "single-file-skill" }
+        assertEquals(USER_SKILL_SOURCE, indexed.source)
+        assertTrue(indexed.enabled)
+        assertFalse(indexed.hasScripts)
+        assertFalse(indexed.hasReferences)
+    }
+
+    @Test
+    fun localSkillFileRejectsEmptyFile() {
+        val fixture = fixture("file-empty")
+        val result = fixture.installer.installLocalSkillFile({ ByteArray(0).inputStream() })
+
+        assertFailureCode(result, SkillInstallErrorCode.INVALID_SKILL)
+    }
+
+    @Test
+    fun localSkillFileRejectsOversizedFile() {
+        val fixture = fixture("file-oversized", SkillPackageLimits(maxSkillFileBytes = 32))
+        val skillContent = skill("oversized", "Some long description exceeds limit.")
+        val result = fixture.installer.installLocalSkillFile({ skillContent.inputStream() })
+
+        assertFailureCode(result, SkillInstallErrorCode.INVALID_SKILL)
+    }
+
+    @Test
+    fun localSkillFileDetectsConflictAndSupportsReplacementWithDigest() {
+        val fixture = fixture("file-conflict")
+        val initial = skill("file-conflict-skill", "Initial version.")
+        val initialResult = fixture.installer.installLocalSkillFile({ initial.inputStream() })
+        assertTrue(initialResult is SkillInstallResult.Success)
+
+        val updated = skill("file-conflict-skill", "Updated version.")
+        val conflictResult = fixture.installer.installLocalSkillFile({ updated.inputStream() })
+        assertTrue(conflictResult is SkillInstallResult.Conflict)
+        val conflict = conflictResult as SkillInstallResult.Conflict
+        assertEquals("file-conflict-skill", conflict.conflicts.single().id)
+        val expectedSha = sha256(updated)
+        assertEquals(expectedSha, conflict.archiveSha256)
+
+        val replaceResult = fixture.installer.installLocalSkillFile(
+            openStream = { updated.inputStream() },
+            replaceUserSkill = true,
+            expectedReplacementId = "file-conflict-skill",
+            expectedFileSha256 = expectedSha,
+        )
+        assertTrue(replaceResult is SkillInstallResult.Success)
+        assertEquals(
+            String(updated),
+            File(fixture.skillsRoot, "file-conflict-skill/SKILL.md").readText(),
+        )
+    }
+
     private fun fixture(
         name: String,
         limits: SkillPackageLimits = SkillPackageLimits(),

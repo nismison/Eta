@@ -66,6 +66,21 @@ fun AgentSkillsScreen(
             ),
         )
     }
+    val filePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) onAction(AgentSkillsAction.ImportSkillFile(uri.toString()))
+    }
+    val openFilePicker = {
+        filePicker.launch(
+            arrayOf(
+                "text/markdown",
+                "text/x-markdown",
+                "text/plain",
+                "*/*",
+            ),
+        )
+    }
 
     MiuixScaffoldPage(
         title = stringResource(R.string.route_skills),
@@ -108,6 +123,32 @@ fun AgentSkillsScreen(
                     enabled = !operationPending,
                     onClick = openZipPicker,
                     onClickLabel = stringResource(R.string.skills_choose_zip),
+                )
+                PrefDivider()
+                BasicComponent(
+                    title = if (state.isImporting) stringResource(R.string.skills_checking_package) else stringResource(R.string.skills_import_file),
+                    summary = if (state.isImporting) {
+                        stringResource(R.string.skills_installing_package)
+                    } else {
+                        stringResource(R.string.skills_choose_file)
+                    },
+                    startAction = {
+                        if (state.isImporting) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 12.dp)
+                                    .size(36.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                InfiniteProgressIndicator(size = 22.dp)
+                            }
+                        } else {
+                            FileImportIcon()
+                        }
+                    },
+                    enabled = !operationPending,
+                    onClick = openFilePicker,
+                    onClickLabel = stringResource(R.string.skills_choose_file),
                 )
             }
         }
@@ -296,6 +337,24 @@ private fun ZipImportIcon() {
     ) {
         Icon(
             painter = painterResource(LucideR.drawable.lucide_ic_file_archive),
+            contentDescription = null,
+            modifier = Modifier.size(22.dp),
+            tint = MiuixTheme.colorScheme.onBackground,
+        )
+    }
+}
+
+@Composable
+private fun FileImportIcon() {
+    Box(
+        modifier = Modifier
+            .padding(end = 12.dp)
+            .size(36.dp)
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(LucideR.drawable.lucide_ic_file_text),
             contentDescription = null,
             modifier = Modifier.size(22.dp),
             tint = MiuixTheme.colorScheme.onBackground,

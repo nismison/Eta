@@ -1,4 +1,4 @@
-package io.github.mangi.eta.ui.app
+﻿package io.github.mangi.eta.ui.app
 
 import android.Manifest
 import android.app.Activity
@@ -356,6 +356,7 @@ fun AgentAppRoot(
                         when (action) {
                             AgentSkillsAction.NavigateBack -> popRoute()
                             is AgentSkillsAction.ImportZip -> agentState.importSkillZip(action.uri)
+                            is AgentSkillsAction.ImportSkillFile -> agentState.importSkillFile(action.uri)
                             AgentSkillsAction.ConfirmZipReplacement -> agentState.confirmSkillZipReplacement()
                             AgentSkillsAction.CancelZipReplacement -> agentState.cancelSkillZipReplacement()
                             AgentSkillsAction.DismissNotice -> agentState.dismissSkillNotice()

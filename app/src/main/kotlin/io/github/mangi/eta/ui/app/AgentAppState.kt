@@ -1,4 +1,4 @@
-package io.github.mangi.eta.ui.app
+﻿package io.github.mangi.eta.ui.app
 
 import android.content.ComponentName
 import android.content.ContentResolver
@@ -114,6 +114,7 @@ internal class AgentAppState(
     private var skillNoticeSequence = 0L
     private var pendingSkillZipUri: Uri? = null
     private var pendingSkillZipSha256: String? = null
+    private var pendingSkillImportIsFile: Boolean = false
     private var currentReasoningCapabilities: ModelReasoningCapabilities? = null
     private var fileAttachmentOwnerVersion = 0L
 
@@ -1454,17 +1455,46 @@ internal class AgentAppState(
         }
         pendingSkillZipUri = uri
         pendingSkillZipSha256 = null
+        pendingSkillImportIsFile = false
         launchSkillZipImport(
             uri = uri,
             replaceUserSkill = false,
             expectedReplacementId = null,
             expectedArchiveSha256 = null,
+            isFile = false,
+        )
+    }
+
+    fun importSkillFile(uriValue: String) {
+        if (skillsState.isImporting || skillsState.busySkillId != null) return
+        val uri = runCatching { Uri.parse(uriValue) }.getOrNull()
+            ?.takeIf { it.scheme == ContentResolver.SCHEME_CONTENT }
+        if (uri == null) {
+            skillsState = skillsState.copy(
+                notice = newSkillNotice(
+                    title = appContext.getString(R.string.state_unable_to_read_skill_pack_a53563),
+                    message = appContext.getString(R.string.state_ui_the_selected_file_cannot_be_read_please_select_a_7265b9),
+                    isError = true,
+                ),
+            )
+            return
+        }
+        pendingSkillZipUri = uri
+        pendingSkillZipSha256 = null
+        pendingSkillImportIsFile = true
+        launchSkillZipImport(
+            uri = uri,
+            replaceUserSkill = false,
+            expectedReplacementId = null,
+            expectedArchiveSha256 = null,
+            isFile = true,
         )
     }
 
     fun confirmSkillZipReplacement() {
         if (skillsState.isImporting || skillsState.busySkillId != null) return
         val uri = pendingSkillZipUri
+        val isFile = pendingSkillImportIsFile
         if (uri == null) {
             pendingSkillZipSha256 = null
             skillsState = skillsState.copy(
@@ -1497,6 +1527,7 @@ internal class AgentAppState(
             replaceUserSkill = true,
             expectedReplacementId = replacementId,
             expectedArchiveSha256 = archiveSha256,
+            isFile = isFile,
         )
     }
 
@@ -1504,6 +1535,7 @@ internal class AgentAppState(
         if (skillsState.isImporting) return
         pendingSkillZipUri = null
         pendingSkillZipSha256 = null
+        pendingSkillImportIsFile = false
         skillsState = skillsState.copy(replacement = null)
     }
 
@@ -1512,6 +1544,7 @@ internal class AgentAppState(
         replaceUserSkill: Boolean,
         expectedReplacementId: String?,
         expectedArchiveSha256: String?,
+        isFile: Boolean,
     ) {
         skillsState = skillsState.copy(
             isImporting = true,
@@ -1520,15 +1553,25 @@ internal class AgentAppState(
         )
         scope.launch(Dispatchers.IO) {
             val outcome = runCatching {
-                skillZipImportGateway.installLocalZip(
-                    openStream = {
-                        appContext.contentResolver.openInputStream(uri)
-                            ?: error(appContext.getString(R.string.state_ui_unable_to_open_selection_9f0004))
-                    },
-                    replaceUserSkill = replaceUserSkill,
-                    expectedReplacementId = expectedReplacementId,
-                    expectedArchiveSha256 = expectedArchiveSha256,
-                )
+                val openStream: () -> java.io.InputStream = {
+                    appContext.contentResolver.openInputStream(uri)
+                        ?: error(appContext.getString(R.string.state_ui_unable_to_open_selection_9f0004))
+                }
+                if (isFile) {
+                    skillZipImportGateway.installLocalSkillFile(
+                        openStream = openStream,
+                        replaceUserSkill = replaceUserSkill,
+                        expectedReplacementId = expectedReplacementId,
+                        expectedFileSha256 = expectedArchiveSha256,
+                    )
+                } else {
+                    skillZipImportGateway.installLocalZip(
+                        openStream = openStream,
+                        replaceUserSkill = replaceUserSkill,
+                        expectedReplacementId = expectedReplacementId,
+                        expectedArchiveSha256 = expectedArchiveSha256,
+                    )
+                }
             }.getOrElse {
                 SkillZipImportOutcome.Failure(SkillZipImportOutcome.FailureCode.READ_FAILED)
             }

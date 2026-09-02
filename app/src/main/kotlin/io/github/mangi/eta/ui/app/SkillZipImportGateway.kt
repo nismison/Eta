@@ -1,4 +1,4 @@
-package io.github.mangi.eta.ui.app
+﻿package io.github.mangi.eta.ui.app
 
 import android.content.Context
 import io.github.mangi.eta.agent.skill.SkillInstallErrorCode
@@ -11,13 +11,20 @@ import kotlinx.coroutines.isActive
 /**
  * UI 与技能安装内核之间的窄适配层。UI 只负责重新打开 SAF 输入流，不解析或解压 ZIP。
  */
-internal fun interface SkillZipImportGateway {
+internal interface SkillZipImportGateway {
     suspend fun installLocalZip(
         openStream: () -> InputStream,
         replaceUserSkill: Boolean,
         expectedReplacementId: String?,
         expectedArchiveSha256: String?,
     ): SkillZipImportOutcome
+
+    suspend fun installLocalSkillFile(
+        openStream: () -> InputStream,
+        replaceUserSkill: Boolean,
+        expectedReplacementId: String?,
+        expectedFileSha256: String?,
+    ): SkillZipImportOutcome = SkillZipImportOutcome.Failure(SkillZipImportOutcome.FailureCode.READ_FAILED)
 }
 
 internal class CoreSkillZipImportGateway(
@@ -37,6 +44,22 @@ internal class CoreSkillZipImportGateway(
             replaceUserSkill = replaceUserSkill,
             expectedReplacementId = expectedReplacementId,
             expectedArchiveSha256 = expectedArchiveSha256,
+            isCancelled = { !callingContext.isActive },
+        ).toZipImportOutcome()
+    }
+
+    override suspend fun installLocalSkillFile(
+        openStream: () -> InputStream,
+        replaceUserSkill: Boolean,
+        expectedReplacementId: String?,
+        expectedFileSha256: String?,
+    ): SkillZipImportOutcome {
+        val callingContext = currentCoroutineContext()
+        return installer.installLocalSkillFile(
+            openStream = openStream,
+            replaceUserSkill = replaceUserSkill,
+            expectedReplacementId = expectedReplacementId,
+            expectedFileSha256 = expectedFileSha256,
             isCancelled = { !callingContext.isActive },
         ).toZipImportOutcome()
     }

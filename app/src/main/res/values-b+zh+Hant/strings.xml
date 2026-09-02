@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <resources>
   <string name="app_name">Eta</string>
   <string name="xposed_description">Eta 系統級 AI Agent：接管小布與超級小愛助理入口，啟用 Gemini 與圈選搜尋，並提供內建瀏覽器、終端機及裝置工具。</string>
@@ -1038,6 +1038,8 @@
   <string name="provider_set_current">設為目前使用</string>
   <string name="skills_checking_package">正在檢查 Skill 包</string>
   <string name="skills_import_zip">從 ZIP 匯入</string>
+  <string name="skills_import_file">匯入 SKILL.md 檔案</string>
+  <string name="skills_choose_file">選擇一個 SKILL.md 檔案</string>
   <string name="skills_installing_package">正在驗證並安裝，請稍候</string>
   <string name="skills_choose_package">選擇包含 SKILL.md 的 Skill 包</string>
   <string name="skills_choose_zip">選擇 ZIP Skill 包</string>

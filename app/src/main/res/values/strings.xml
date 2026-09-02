@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <resources>
   <string name="app_name">Eta</string>
   <string name="xposed_description">A system-level AI agent that takes over the Breeno and Super XiaoAI assistant entry points, enables Gemini and Circle to Search, and provides a built-in browser, terminal, and device tools.</string>
@@ -1053,6 +1053,8 @@
   <string name="provider_set_current">Set as current</string>
   <string name="skills_checking_package">Checking skill package</string>
   <string name="skills_import_zip">Import from ZIP</string>
+  <string name="skills_import_file">Import SKILL.md file</string>
+  <string name="skills_choose_file">Choose a SKILL.md file</string>
   <string name="skills_installing_package">Verifying and installing. Please wait</string>
   <string name="skills_choose_package">Choose a skill package containing SKILL.md</string>
   <string name="skills_choose_zip">Choose ZIP skill package</string>
