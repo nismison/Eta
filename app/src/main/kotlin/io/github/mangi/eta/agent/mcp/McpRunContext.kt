@@ -33,6 +33,7 @@ internal class McpRunSnapshot(
                     append("。 ").append(it)
                 }
             }
+            val sanitizedSchema = McpSchemaSanitizer.sanitize(tool.definition.inputSchemaJson)
             destination.put(
                 JSONObject()
                     .put("type", "function")
@@ -41,7 +42,7 @@ internal class McpRunSnapshot(
                         JSONObject()
                             .put("name", tool.modelName)
                             .put("description", description)
-                            .put("parameters", JSONObject(tool.definition.inputSchemaJson)),
+                            .put("parameters", JSONObject(sanitizedSchema)),
                     ),
             )
         }
