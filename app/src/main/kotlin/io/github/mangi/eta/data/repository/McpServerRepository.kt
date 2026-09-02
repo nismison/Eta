@@ -89,6 +89,20 @@ internal object McpServerRepository {
 
     fun bearerToken(serverId: String): String? = secrets().bearerToken(serverId)
 
+    suspend fun replaceAll(serversWithTokens: List<Pair<McpServerSetting, String?>>) {
+        val secretStore = secrets()
+        val dao = dao()
+        dao.deleteAll()
+        secretStore.clearAll()
+        if (serversWithTokens.isNotEmpty()) {
+            val entities = serversWithTokens.map { (server, token) ->
+                updateSecret(secretStore, server, token.orEmpty())
+                server.toEntity()
+            }
+            dao.insertAll(entities)
+        }
+    }
+
     private fun updateSecret(
         secretStore: McpSecretStore,
         server: McpServerSetting,

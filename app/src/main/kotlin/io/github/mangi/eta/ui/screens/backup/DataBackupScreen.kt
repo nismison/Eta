@@ -80,6 +80,7 @@ internal fun DataBackupScreen(
                         R.string.data_backup_exported,
                         summary.conversationCount,
                         summary.providerCount,
+                        summary.mcpServerCount,
                     ),
                     Toast.LENGTH_SHORT,
                 ).show()
@@ -197,6 +198,7 @@ internal fun DataBackupScreen(
                                     R.string.data_backup_imported,
                                     summary.conversationCount,
                                     summary.providerCount,
+                                    summary.mcpServerCount,
                                 ),
                                 Toast.LENGTH_SHORT,
                             ).show()

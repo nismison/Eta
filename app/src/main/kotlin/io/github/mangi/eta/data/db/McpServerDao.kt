@@ -21,9 +21,15 @@ internal interface McpServerDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(server: McpServerEntity)
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertAll(servers: List<McpServerEntity>)
+
     @Update
     suspend fun update(server: McpServerEntity): Int
 
     @Query("DELETE FROM mcp_servers WHERE id = :id")
     suspend fun delete(id: String): Int
+
+    @Query("DELETE FROM mcp_servers")
+    suspend fun deleteAll(): Int
 }

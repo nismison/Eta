@@ -11,6 +11,7 @@ import io.github.mangi.eta.data.db.ProviderEntity
 import io.github.mangi.eta.data.db.ProviderModelEntity
 import io.github.mangi.eta.data.db.ProviderWithModelsSeed
 import io.github.mangi.eta.data.datastore.SettingsDataStore
+import io.github.mangi.eta.data.model.McpServerSetting
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -19,7 +20,7 @@ import kotlinx.serialization.encodeToString
 import java.io.InputStream
 import java.io.OutputStream
 
-/** Eta 用户数据备份的稳定 JSON 格式。只保存对话、Provider/Model 和 MEMORY.md。 */
+/** Eta 用户数据备份的稳定 JSON 格式。保存对话、Provider/Model、MCP 服务器和 MEMORY.md。 */
 @Serializable
 internal data class EtaBackupDocument(
     val format: String = FORMAT,
@@ -33,6 +34,7 @@ internal data class EtaBackupDocument(
     val contextCheckpoints: List<ConversationContextCheckpointEntity> = emptyList(),
     val conversationState: ConversationStateEntity? = null,
     val memoryMd: String = "",
+    val mcpServers: List<EtaBackupMcpServer> = emptyList(),
 ) {
     companion object {
         const val FORMAT = "eta-backup"
@@ -46,12 +48,19 @@ internal data class EtaBackupProvider(
     val models: List<ProviderModelEntity> = emptyList(),
 )
 
+@Serializable
+internal data class EtaBackupMcpServer(
+    val server: McpServerSetting,
+    val bearerToken: String? = null,
+)
+
 internal data class EtaBackupSummary(
     val providerCount: Int,
     val modelCount: Int,
     val conversationCount: Int,
     val messageCount: Int,
     val memoryBytes: Int,
+    val mcpServerCount: Int = 0,
 )
 
 internal class EtaBackupException(message: String, cause: Throwable? = null) :
@@ -104,6 +113,9 @@ internal object EtaBackupRepository {
 
             // MEMORY.md 使用 AtomicFile，数据库提交后再替换，失败时不会留下半截文件。
             AgentMemoryRepository.replaceAll(document.memoryMd)
+            McpServerRepository.replaceAll(
+                document.mcpServers.map { it.server to it.bearerToken },
+            )
             SettingsDataStore.setSelection(
                 providerId = document.selectedProviderId,
                 modelId = document.selectedModelId,
@@ -130,6 +142,12 @@ internal object EtaBackupRepository {
         }
         val conversations = database.conversationDao()
         val settings = SettingsDataStore.settings()
+        val mcpServers = McpServerRepository.servers().map { server ->
+            EtaBackupMcpServer(
+                server = server,
+                bearerToken = McpServerRepository.bearerToken(server.id),
+            )
+        }
         return EtaBackupDocument(
             exportedAt = System.currentTimeMillis(),
             providers = providers,
@@ -140,6 +158,7 @@ internal object EtaBackupRepository {
             contextCheckpoints = conversations.contextCheckpoints(),
             conversationState = conversations.state(),
             memoryMd = AgentMemoryRepository.snapshot().content,
+            mcpServers = mcpServers,
         )
     }
 
@@ -226,6 +245,26 @@ internal object EtaBackupRepository {
         if (document.memoryMd.toByteArray(Charsets.UTF_8).size > 1024 * 1024) {
             throw EtaBackupException("MEMORY.md 超过 1 MiB 限制")
         }
+
+        val mcpServerIds = document.mcpServers.map { it.server.id }
+        if (mcpServerIds.size != mcpServerIds.toSet().size || mcpServerIds.any(String::isBlank)) {
+            throw EtaBackupException("备份中的 MCP 服务器存在重复或无效 ID")
+        }
+        for (mcp in document.mcpServers) {
+            if (mcp.server.name.isBlank()) {
+                throw EtaBackupException("备份中的 MCP 服务器名称不能为空")
+            }
+            if (mcp.server.url.isBlank()) {
+                throw EtaBackupException("备份中的 MCP 服务器 URL 不能为空")
+            }
+            val toolNames = mcp.server.tools.map { it.name }
+            if (toolNames.size != toolNames.toSet().size || toolNames.any(String::isBlank)) {
+                throw EtaBackupException("备份中的 MCP 服务器工具列表存在重复或无效工具名称")
+            }
+            if (mcp.server.customHeaders.any { it.name.isBlank() }) {
+                throw EtaBackupException("备份中的 MCP 服务器包含名称为空的自定义请求头")
+            }
+        }
     }
 
     private fun EtaBackupDocument.summary(): EtaBackupSummary = EtaBackupSummary(
@@ -234,6 +273,7 @@ internal object EtaBackupRepository {
         conversationCount = conversations.size,
         messageCount = messages.size,
         memoryBytes = memoryMd.toByteArray(Charsets.UTF_8).size,
+        mcpServerCount = mcpServers.size,
     )
 }
 

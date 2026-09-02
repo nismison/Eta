@@ -300,9 +300,7 @@ internal object AgentMemoryRepository {
     private lateinit var store: AgentMemoryStore
 
     fun init(context: Context) {
-        if (!::store.isInitialized) {
-            store = AgentMemoryStore(context.applicationContext.filesDir)
-        }
+        store = AgentMemoryStore(context.applicationContext.filesDir)
     }
 
     fun snapshot(): AgentMemorySnapshot {

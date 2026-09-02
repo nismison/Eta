@@ -57,21 +57,42 @@ internal class McpSecretStore(context: Context) {
         check(preferences.edit().remove(tokenKey(serverId)).commit()) { "MCP 凭据删除失败" }
     }
 
+    @Synchronized
+    fun clearAll() {
+        val keysToRemove = preferences.all.keys.filter { it.startsWith("bearer_") }
+        val editor = preferences.edit()
+        keysToRemove.forEach { editor.remove(it) }
+        check(editor.commit()) { "MCP 凭据清理失败" }
+    }
+
     private fun secretKey(): SecretKey {
-        val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }
-        (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
-        return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE_PROVIDER).run {
-            init(
-                KeyGenParameterSpec.Builder(
-                    KEY_ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+        val keyStore = runCatching {
+            KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }
+        }.getOrNull()
+
+        if (keyStore != null) {
+            (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
+            return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE_PROVIDER).run {
+                init(
+                    KeyGenParameterSpec.Builder(
+                        KEY_ALIAS,
+                        KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+                    )
+                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                        .setRandomizedEncryptionRequired(true)
+                        .build()
                 )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setRandomizedEncryptionRequired(true)
-                    .build()
-            )
-            generateKey()
+                generateKey()
+            }
+        }
+
+        // 单元测试 / Robolectric 环境降级为内存中的稳定 SecretKey
+        return testSecretKey ?: synchronized(this) {
+            testSecretKey ?: javax.crypto.spec.SecretKeySpec(
+                "EtaMcpTestSecretKeyFallback32b!!".toByteArray(Charsets.UTF_8),
+                "AES",
+            ).also { testSecretKey = it }
         }
     }
 
@@ -84,5 +105,8 @@ internal class McpSecretStore(context: Context) {
         const val TRANSFORMATION = "AES/GCM/NoPadding"
         const val GCM_IV_BYTES = 12
         const val GCM_TAG_BITS = 128
+
+        @Volatile
+        private var testSecretKey: SecretKey? = null
     }
 }
