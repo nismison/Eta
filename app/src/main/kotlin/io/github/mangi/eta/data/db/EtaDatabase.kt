@@ -23,7 +23,7 @@ import androidx.room.migration.Migration
         SkillRegistryEntity::class,
         McpServerEntity::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = false,
 )
 internal abstract class EtaDatabase : RoomDatabase() {
@@ -57,6 +57,7 @@ internal abstract class EtaDatabase : RoomDatabase() {
                         MIGRATION_15_16,
                         MIGRATION_16_17,
                         MIGRATION_17_18,
+                        MIGRATION_18_19,
                     )
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
@@ -99,6 +100,10 @@ internal abstract class EtaDatabase : RoomDatabase() {
             )
         }
 
+                internal val MIGRATION_18_19 = Migration(18, 19) { database ->
+            database.execSQL("ALTER TABLE mcp_servers ADD COLUMN custom_headers_json TEXT NOT NULL DEFAULT '[]'")
+        }
+
         internal val MIGRATION_17_18 = Migration(17, 18) { database ->
             database.execSQL("ALTER TABLE mcp_servers ADD COLUMN tools_expire_at INTEGER")
         }
@@ -117,12 +122,12 @@ internal abstract class EtaDatabase : RoomDatabase() {
             database.execSQL(
                 "UPDATE provider_models SET source = 'catalog' WHERE is_built_in = 1"
             )
-            // 旧版“添加自定义模型”会在打开编辑框时提前落下一条空记录。
+            // 旧版“添加自定义模型”会在打开编辑框时提前落下一条空记录�?
             database.execSQL("DELETE FROM provider_models WHERE TRIM(model_id) = ''")
-            // 只清理由旧版“新建对话”产生、且用户从未真正使用或命名过的占位记录。
+            // 只清理由旧版“新建对话”产生、且用户从未真正使用或命名过的占位记录�?
             database.execSQL(
                 "DELETE FROM conversations " +
-                    "WHERE title = '新对话' " +
+                    "WHERE title = '新对�? " +
                     "AND TRIM(history_json) = '[]' " +
                     "AND TRIM(applied_runtime_run_ids_json) = '[]' " +
                     "AND NOT EXISTS (" +
@@ -165,7 +170,7 @@ internal abstract class EtaDatabase : RoomDatabase() {
                     "WHEN length(CAST(history_json AS BLOB)) <= 131072 THEN history_json " +
                     "ELSE '[]' END FROM conversations"
             )
-            // 会话列表不再使用旧字段；及时清空可保证旧版留下的超大行不会继续占用数据库。
+            // 会话列表不再使用旧字段；及时清空可保证旧版留下的超大行不会继续占用数据库�?
             database.execSQL("UPDATE conversations SET history_json = '[]'")
         }
 

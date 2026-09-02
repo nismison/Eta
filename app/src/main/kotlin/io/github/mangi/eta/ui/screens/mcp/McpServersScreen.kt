@@ -28,6 +28,11 @@ import com.composables.icons.lucide.R as LucideR
 import io.github.mangi.eta.R
 import io.github.mangi.eta.agent.mcp.McpServerManager
 import io.github.mangi.eta.agent.mcp.validateMcpEndpoint
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
+import io.github.mangi.eta.data.model.CustomHeader
 import io.github.mangi.eta.data.model.McpAuthorizationType
 import io.github.mangi.eta.data.model.McpProtocolMode
 import io.github.mangi.eta.data.model.McpServerSetting
@@ -65,6 +70,7 @@ internal fun McpServersScreen(
     var name by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var token by remember { mutableStateOf("") }
+    var customHeaders by remember { mutableStateOf<List<CustomHeader>>(emptyList()) }
     var working by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -146,6 +152,69 @@ internal fun McpServersScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth(),
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.mcp_custom_headers),
+                    style = MiuixTheme.textStyles.title4,
+                )
+                IconButton(
+                    enabled = !working,
+                    onClick = { customHeaders = customHeaders + CustomHeader("", "") },
+                ) {
+                    Icon(
+                        painter = painterResource(LucideR.drawable.lucide_ic_plus),
+                        contentDescription = stringResource(R.string.mcp_add_header),
+                    )
+                }
+            }
+            customHeaders.forEachIndexed { index, header ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextField(
+                        value = header.name,
+                        onValueChange = { newName ->
+                            customHeaders = customHeaders.toMutableList().also {
+                                it[index] = header.copy(name = newName)
+                            }
+                        },
+                        label = stringResource(R.string.mcp_header_name),
+                        singleLine = true,
+                        enabled = !working,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextField(
+                        value = header.value,
+                        onValueChange = { newValue ->
+                            customHeaders = customHeaders.toMutableList().also {
+                                it[index] = header.copy(value = newValue)
+                            }
+                        },
+                        label = stringResource(R.string.mcp_header_value),
+                        singleLine = true,
+                        enabled = !working,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(
+                        enabled = !working,
+                        onClick = {
+                            customHeaders = customHeaders.filterIndexed { i, _ -> i != index }
+                        },
+                    ) {
+                        Icon(
+                            painter = painterResource(LucideR.drawable.lucide_ic_trash),
+                            contentDescription = stringResource(R.string.mcp_delete_header),
+                            tint = MiuixTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
             error?.let {
                 Text(
                     text = it,
@@ -160,7 +229,7 @@ internal fun McpServersScreen(
                     stringResource(R.string.mcp_add_server)
                 },
                 confirmEnabled = !working,
-                onCancel = { showAdd = false },
+                onCancel = { showAdd = false; customHeaders = emptyList() },
                 onConfirm = {
                     val normalizedName = name.trim()
                     val normalizedUrl = url.trim()
@@ -183,6 +252,7 @@ internal fun McpServersScreen(
                                     } else {
                                         McpAuthorizationType.BEARER
                                     },
+                                    customHeaders = customHeaders.filter { it.name.isNotBlank() },
                                 )
                                 val discovered = McpServerManager.discover(draft, token)
                                 McpServerRepository.add(discovered, token)
@@ -194,6 +264,7 @@ internal fun McpServersScreen(
                             name = ""
                             url = ""
                             token = ""
+                            customHeaders = emptyList()
                             error = null
                             Toast.makeText(
                                 context,
@@ -225,6 +296,7 @@ internal fun McpServerDetailScreen(
     var showDelete by remember { mutableStateOf(false) }
     var showToken by remember { mutableStateOf(false) }
     var token by remember { mutableStateOf("") }
+    var customHeaders by remember { mutableStateOf<List<CustomHeader>>(emptyList()) }
 
     MiuixScaffoldPage(
         title = server?.name ?: stringResource(R.string.route_mcp_server_detail),

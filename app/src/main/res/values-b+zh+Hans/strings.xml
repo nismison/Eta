@@ -1140,6 +1140,11 @@
   <string name="mcp_bearer_token">Bearer Token</string>
   <string name="mcp_delete_confirm">删除 %1$s？此操作无法撤销。</string>
   <string name="mcp_read_only_tool">只读工具</string>
+  <string name="mcp_custom_headers">自定义请求头</string>
+  <string name="mcp_add_header">添加请求头</string>
+  <string name="mcp_header_name">请求头名称</string>
+  <string name="mcp_header_value">请求头内容</string>
+  <string name="mcp_delete_header">删除请求头</string>
   <string name="mcp_may_modify_data">可能修改数据或访问外部服务</string>
   <string name="data_backup_title">数据备份</string>
   <string name="data_backup_actions">备份</string>

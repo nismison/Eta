@@ -33,6 +33,7 @@ internal data class McpServerSetting(
     val enabled: Boolean = true,
     val protocolMode: String = McpProtocolMode.AUTO,
     val authorizationType: String = McpAuthorizationType.NONE,
+    val customHeaders: List<CustomHeader> = emptyList(),
     val tools: List<McpToolDefinition> = emptyList(),
     val enabledToolNames: Set<String> = emptySet(),
     val createdAt: Long = System.currentTimeMillis(),

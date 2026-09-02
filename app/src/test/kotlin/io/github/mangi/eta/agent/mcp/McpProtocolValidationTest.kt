@@ -2,6 +2,7 @@ package io.github.mangi.eta.agent.mcp
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import io.github.mangi.eta.data.model.CustomHeader
 import io.github.mangi.eta.data.model.McpProtocolMode
 import io.github.mangi.eta.data.model.McpServerSetting
 import io.github.mangi.eta.data.model.McpToolDefinition
@@ -415,6 +416,50 @@ data: "id":1,"result":{"resultType":"complete","ttlMs":1000,"tools":[]}}
             assertEquals(encodeMcpHeaderValue("执行任务"), nameHeader.get())
             assertEquals(encodeMcpHeaderValue("华东"), regionHeader.get())
             assertEquals("42", pageHeader.get())
+        } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun mcpHttpClientSendsConfiguredCustomHeaders() {
+        val customHeaderVal = AtomicReference<String>()
+        val customDeviceVal = AtomicReference<String>()
+        val server = localServer { exchange ->
+            customHeaderVal.set(exchange.requestHeaders.getFirst("X-Custom-Token"))
+            customDeviceVal.set(exchange.requestHeaders.getFirst("X-Device-Id"))
+            exchange.respond(
+                200,
+                JSONObject()
+                    .put("jsonrpc", "2.0")
+                    .put("id", 1)
+                    .put(
+                        "result",
+                        JSONObject()
+                            .put("resultType", "complete")
+                            .put("ttlMs", 1_000)
+                            .put("tools", org.json.JSONArray())
+                    )
+                    .toString(),
+            )
+        }
+        try {
+            val configured = McpServerSetting(
+                id = "test",
+                name = "Test",
+                url = server.url(),
+                customHeaders = listOf(
+                    CustomHeader(name = "X-Custom-Token", value = "token-12345"),
+                    CustomHeader(name = "X-Device-Id", value = "device-abc-999"),
+                    CustomHeader(name = "Host", value = "forbidden-host"),
+                ),
+            )
+            McpHttpClient(configured, bearerToken = null).use { client ->
+                client.discoverTools()
+            }
+
+            assertEquals("token-12345", customHeaderVal.get())
+            assertEquals("device-abc-999", customDeviceVal.get())
         } finally {
             server.stop(0)
         }

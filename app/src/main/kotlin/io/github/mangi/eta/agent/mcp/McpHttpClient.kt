@@ -3,6 +3,7 @@ package io.github.mangi.eta.agent.mcp
 import io.github.mangi.eta.agent.model.AgentHttpClient
 import io.github.mangi.eta.data.model.McpProtocolMode
 import io.github.mangi.eta.data.model.McpServerSetting
+import io.github.mangi.eta.agent.model.CustomHeaderFilter
 import io.github.mangi.eta.data.model.McpToolDefinition
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
@@ -302,7 +303,7 @@ internal class McpHttpClient(
                     header(headerName, headerValue)
                 }
             }
-            .applyAuthorization()
+            .applyCustomHeaders().applyAuthorization()
             .build()
         return execute(httpRequest, expectsBody = true, expectedId = id)
     }
@@ -323,7 +324,7 @@ internal class McpHttpClient(
             .header(HEADER_PROTOCOL_VERSION, protocolVersion)
             .header(HEADER_METHOD, method)
             .apply { sessionId?.let { header(HEADER_SESSION_ID, it) } }
-            .applyAuthorization()
+            .applyCustomHeaders().applyAuthorization()
             .build()
         execute(httpRequest, expectsBody = false, expectedId = null)
     }
@@ -380,7 +381,7 @@ internal class McpHttpClient(
             .delete()
             .header(HEADER_PROTOCOL_VERSION, protocolVersion)
             .header(HEADER_SESSION_ID, sessionId)
-            .applyAuthorization()
+            .applyCustomHeaders().applyAuthorization()
             .build()
         AgentHttpClient.client.newCall(request).enqueue(
             object : Callback {
@@ -391,6 +392,17 @@ internal class McpHttpClient(
                 }
             }
         )
+    }
+
+    private fun Request.Builder.applyCustomHeaders(): Request.Builder = apply {
+        if (server.customHeaders.isNotEmpty()) {
+            val headersBuilder = okhttp3.Headers.Builder()
+            CustomHeaderFilter.mergeInto(headersBuilder, server.customHeaders)
+            val builtHeaders = headersBuilder.build()
+            for (i in 0 until builtHeaders.size) {
+                header(builtHeaders.name(i), builtHeaders.value(i))
+            }
+        }
     }
 
     private fun Request.Builder.applyAuthorization(): Request.Builder = apply {

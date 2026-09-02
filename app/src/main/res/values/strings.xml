@@ -1156,6 +1156,11 @@
   <string name="mcp_bearer_token">Bearer token</string>
   <string name="mcp_delete_confirm">Delete %1$s? This cannot be undone.</string>
   <string name="mcp_read_only_tool">Read-only tool</string>
+  <string name="mcp_custom_headers">Custom HTTP headers</string>
+  <string name="mcp_add_header">Add header</string>
+  <string name="mcp_header_name">Header name</string>
+  <string name="mcp_header_value">Header value</string>
+  <string name="mcp_delete_header">Delete header</string>
   <string name="mcp_may_modify_data">May modify data or call an external service</string>
   <string name="data_backup_title">Data backup</string>
   <string name="data_backup_actions">Backup</string>

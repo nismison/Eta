@@ -3,6 +3,7 @@ package io.github.mangi.eta.data.db
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import io.github.mangi.eta.data.model.CustomHeader
 import io.github.mangi.eta.data.model.McpServerSetting
 import io.github.mangi.eta.data.model.McpToolDefinition
 import kotlinx.serialization.builtins.ListSerializer
@@ -18,6 +19,7 @@ internal data class McpServerEntity(
     val enabled: Boolean,
     @ColumnInfo(name = "protocol_mode") val protocolMode: String,
     @ColumnInfo(name = "authorization_type") val authorizationType: String,
+    @ColumnInfo(name = "custom_headers_json", defaultValue = "[]") val customHeadersJson: String = "[]",
     @ColumnInfo(name = "tools_json") val toolsJson: String,
     @ColumnInfo(name = "enabled_tool_names_json") val enabledToolNamesJson: String,
     @ColumnInfo(name = "created_at") val createdAt: Long,
@@ -39,6 +41,7 @@ internal fun McpServerSetting.toEntity(): McpServerEntity = McpServerEntity(
     enabled = enabled,
     protocolMode = protocolMode,
     authorizationType = authorizationType,
+    customHeadersJson = mcpJson.encodeToString(ListSerializer(CustomHeader.serializer()), customHeaders),
     toolsJson = mcpJson.encodeToString(ListSerializer(McpToolDefinition.serializer()), tools),
     enabledToolNamesJson = mcpJson.encodeToString(SetSerializer(String.serializer()), enabledToolNames),
     createdAt = createdAt,
@@ -55,6 +58,9 @@ internal fun McpServerEntity.toDomain(): McpServerSetting = McpServerSetting(
     enabled = enabled,
     protocolMode = protocolMode,
     authorizationType = authorizationType,
+    customHeaders = runCatching {
+        mcpJson.decodeFromString(ListSerializer(CustomHeader.serializer()), customHeadersJson)
+    }.getOrDefault(emptyList()),
     tools = runCatching {
         mcpJson.decodeFromString(ListSerializer(McpToolDefinition.serializer()), toolsJson)
     }.getOrDefault(emptyList()),
