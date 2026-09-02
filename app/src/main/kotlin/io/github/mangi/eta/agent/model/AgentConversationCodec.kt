@@ -243,6 +243,9 @@ internal object AgentConversationCodec {
     fun durableMessage(message: JSONObject): AgentModelClient.ConversationMessage =
         sanitizeMessage(fromJsonObject(message))
 
+    private const val MAX_TOOL_OUTPUT_CHARS_IN_HISTORY = 1_200
+    private const val TOOL_OUTPUT_TRUNCATED_MARKER = "\n...[历史工具输出已折叠]...\n"
+
     private fun encodeBounded(
         messages: List<AgentModelClient.ConversationMessage>,
         maxChars: Int,
@@ -251,18 +254,40 @@ internal object AgentConversationCodec {
         var encoded = json.encodeToString(bounded)
         if (encoded.length <= maxChars) return encoded
 
+        // 第一阶段：压缩历史较早轮次中体积庞大的 tool 文本（通常占整个历史体积的 80% 以上）
+        for (i in 0 until bounded.size - 1) {
+            val msg = bounded[i]
+            if (msg.role == "tool" && msg.content.length > MAX_TOOL_OUTPUT_CHARS_IN_HISTORY) {
+                val half = (MAX_TOOL_OUTPUT_CHARS_IN_HISTORY - TOOL_OUTPUT_TRUNCATED_MARKER.length) / 2
+                val folded = msg.content.take(half) + TOOL_OUTPUT_TRUNCATED_MARKER + msg.content.takeLast(half)
+                bounded[i] = msg.copy(content = folded)
+            }
+        }
+        encoded = json.encodeToString(bounded)
+        if (encoded.length <= maxChars) return encoded
+
         val notice = AgentModelClient.ConversationMessage(
             role = "system",
             content = COMPACTION_NOTICE,
         )
-        while (bounded.size > 1) {
+
+        // 第二阶段：整回合淘汰。
+        // 如果首条消息是 user（任务主锚点），将其保护起来，淘汰中间较旧的回合。
+        val hasInitialUserAnchor = bounded.firstOrNull()?.role == "user"
+        val anchor = if (hasInitialUserAnchor) bounded.removeAt(0) else null
+
+        while (bounded.isNotEmpty()) {
+            // 每次从头部淘汰一个完整的历史单元（直到下一个 user 消息或清空）
             bounded.removeAt(0)
-            while (bounded.firstOrNull()?.role == "tool") bounded.removeAt(0)
-            encoded = json.encodeToString(listOf(notice) + bounded)
+            while (bounded.isNotEmpty() && bounded.first().role != "user") {
+                bounded.removeAt(0)
+            }
+            val candidate = if (anchor != null) listOf(notice, anchor) + bounded else listOf(notice) + bounded
+            encoded = json.encodeToString(candidate)
             if (encoded.length <= maxChars) return encoded
         }
 
-        val last = bounded.lastOrNull() ?: return "[]"
+        val last = anchor ?: return "[]"
         val compacted = last.copy(
             content = last.content.take(maxChars / 4),
             contentJson = "",

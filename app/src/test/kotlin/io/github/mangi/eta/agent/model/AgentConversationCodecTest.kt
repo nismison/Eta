@@ -87,6 +87,40 @@ class AgentConversationCodecTest {
     }
 
     @Test
+    fun encodeBoundedPreservesInitialUserAnchorAndCompressesToolBloat() {
+        val messages = buildList {
+            add(AgentModelClient.ConversationMessage(role = "user", content = "最初的用户提问任务目标"))
+            repeat(10) { index ->
+                add(
+                    AgentModelClient.ConversationMessage(
+                        role = "assistant",
+                        content = "",
+                        toolCallsJson = """[{"id":"call_$index","type":"function","function":{"name":"terminal","arguments":"{}"}}]""",
+                    )
+                )
+                add(
+                    AgentModelClient.ConversationMessage(
+                        role = "tool",
+                        toolCallId = "call_$index",
+                        content = "命令大输出-${"z".repeat(15_000)}",
+                    )
+                )
+            }
+            add(AgentModelClient.ConversationMessage(role = "assistant", content = "本轮回答"))
+        }
+
+        val encoded = AgentConversationCodec.encodeConversationCheckpoint(messages)
+        val decoded = AgentConversationCodec.decodeTranscript(encoded)
+
+        assertTrue(encoded.length <= AgentConversationCodec.MAX_CONVERSATION_CHECKPOINT_CHARS)
+        // 验证系统提示之后紧接着的是最初的 user 锚点，而不是断头的 assistant
+        val nonSystemMessages = decoded.filter { it.role != "system" }
+        assertTrue(nonSystemMessages.isNotEmpty())
+        assertEquals("user", nonSystemMessages.first().role)
+        assertEquals("最初的用户提问任务目标", nonSystemMessages.first().content)
+    }
+
+    @Test
     fun conversationCheckpointHasHardBudgetAndKeepsNewestContext() {
         val messages = buildList {
             repeat(20) { index ->

@@ -124,7 +124,22 @@ internal object AnthropicMessagesProvider : AgentProviderClient {
             .put("model", config.model)
             .put("max_tokens", DEFAULT_MAX_TOKENS)
             .put("stream", true)
-            .put("messages", anthropicMessages)
+            .put(
+                "messages",
+                anthropicMessages.takeIf { it.length() > 0 && it.getJSONObject(0).optString("role") == "user" }
+                    ?: JSONArray().also { safeMessages ->
+                        if (anthropicMessages.length() > 0) {
+                            safeMessages.put(
+                                JSONObject()
+                                    .put("role", "user")
+                                    .put("content", "请基于当前任务背景与已执行的上下文继续执行。")
+                            )
+                            for (i in 0 until anthropicMessages.length()) {
+                                safeMessages.put(anthropicMessages.getJSONObject(i))
+                            }
+                        }
+                    }
+            )
             .also { request ->
                 val system = systemParts.joinToString("\n\n").trim()
                 if (system.isNotBlank()) request.put("system", system)
