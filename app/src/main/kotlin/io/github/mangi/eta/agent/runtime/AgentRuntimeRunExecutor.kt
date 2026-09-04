@@ -5,6 +5,7 @@ import io.github.mangi.eta.agent.accessibility.AgentAccessibilityKeeper
 import io.github.mangi.eta.agent.model.AgentModelClient
 import io.github.mangi.eta.agent.model.AgentModelExecutionException
 import io.github.mangi.eta.agent.model.AgentHttpClient
+import io.github.mangi.eta.agent.model.AgentTraceFormatter
 import io.github.mangi.eta.agent.memory.AgentMemoryContext
 import io.github.mangi.eta.agent.memory.AgentMemoryContextBuilder
 import io.github.mangi.eta.agent.mcp.McpRunSnapshot
@@ -195,6 +196,15 @@ internal class AgentRuntimeRunExecutor(
                 skillContext = skillContext,
                 memoryContext = memoryContext,
                 additionalTools = mcpTools,
+                mcpToolResolver = { modelName ->
+                    mcpSnapshot.resolve(modelName)?.let { mcpTool ->
+                        AgentTraceFormatter.McpToolDisplayInfo(
+                            serverName = mcpTool.server.name,
+                            toolName = mcpTool.definition.name,
+                            toolTitle = mcpTool.definition.title,
+                        )
+                    }
+                },
             ) { event ->
                 timing.accept(event)
                 acceptEvent(

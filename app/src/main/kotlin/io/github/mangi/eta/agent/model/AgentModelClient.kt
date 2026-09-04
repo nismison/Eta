@@ -91,6 +91,7 @@ internal object AgentModelClient {
         skillContext: SkillContext = SkillContext.EMPTY,
         memoryContext: AgentMemoryContext = AgentMemoryContext.DISABLED,
         additionalTools: JSONArray = JSONArray(),
+        mcpToolResolver: ((String) -> AgentTraceFormatter.McpToolDisplayInfo?)? = null,
         onEvent: (AgentEvent) -> Unit = {}
     ): ModelResponse.Text {
         config.validate()
@@ -124,6 +125,11 @@ internal object AgentModelClient {
                 terminalTools = config.terminalTools
             )
         )
+        val skillNameMap = skillContext.installedSkills.associate { it.id to it.name }
+        val runTraceFormatter = AgentTraceFormatter(
+            skillNameResolver = { id -> skillNameMap[id] },
+            mcpToolResolver = mcpToolResolver,
+        )
         val loop = AgentLoop(
             config = config,
             messages = messages,
@@ -131,7 +137,7 @@ internal object AgentModelClient {
             provider = provider,
             toolExecutor = toolExecutor,
             runController = runController,
-            traceFormatter = traceFormatter,
+            traceFormatter = runTraceFormatter,
             onEvent = onEvent,
         )
         val result = try {

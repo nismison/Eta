@@ -2866,5 +2866,5 @@ private fun String.toToolIcon(): Int = when (this) {
     "read_file" -> LucideR.drawable.lucide_ic_file_text
     "write_file" -> LucideR.drawable.lucide_ic_file_pen
     "list_directory" -> LucideR.drawable.lucide_ic_folder_open
-    else -> LucideR.drawable.lucide_ic_settings
+    else -> if (startsWith("mcp_")) LucideR.drawable.lucide_ic_network else LucideR.drawable.lucide_ic_settings
 }

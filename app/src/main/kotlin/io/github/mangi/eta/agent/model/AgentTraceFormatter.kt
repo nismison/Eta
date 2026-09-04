@@ -5,7 +5,16 @@ import java.util.Locale
 import org.json.JSONObject
 
 /** 工具摘要面向用户展示，不包含敏感参数；终端命令通过独立字段提供给用户核对。 */
-internal class AgentTraceFormatter {
+internal class AgentTraceFormatter(
+    private val skillNameResolver: ((String) -> String?)? = null,
+    private val mcpToolResolver: ((String) -> McpToolDisplayInfo?)? = null,
+) {
+    data class McpToolDisplayInfo(
+        val serverName: String,
+        val toolName: String,
+        val toolTitle: String = "",
+    )
+
     fun summarizeArguments(toolCall: AgentModelClient.ToolCall): String =
         when (toolCall.name) {
             BROWSER_TOOL_NAME -> summarizeBrowserArguments(toolCall.argumentsJson)
@@ -43,18 +52,24 @@ internal class AgentTraceFormatter {
             "memory_get" -> summarizeMemoryGetArguments(toolCall.argumentsJson)
             "memory_write" -> summarizeMemoryWriteArguments(toolCall.argumentsJson)
             "skills_list" -> "查看技能列表"
-            "skills_read" -> "读取技能"
-            "skills_read_resource" -> "读取技能资源"
+            "skills_read" -> summarizeSkillReadArguments(toolCall.argumentsJson)
+            "skills_read_resource" -> summarizeSkillReadResourceArguments(toolCall.argumentsJson)
             "skills_list_curated" -> "浏览精选技能"
             "skills_inspect_github" -> "查看技能详情"
             "skills_install_from_github" -> "安装技能"
             else -> {
-                val label = DEVICE_ACTION_LABELS[toolCall.name]
-                when {
-                    label == null -> "准备执行"
-                    toolCall.name.startsWith("search_") ->
-                        summarizeQueryArguments(label, toolCall.argumentsJson)
-                    else -> label
+                val mcpInfo = mcpToolResolver?.invoke(toolCall.name)
+                if (mcpInfo != null) {
+                    val displayName = mcpInfo.toolTitle.trim().ifBlank { mcpInfo.toolName }
+                    "$displayName · ${mcpInfo.serverName}"
+                } else {
+                    val label = DEVICE_ACTION_LABELS[toolCall.name]
+                    when {
+                        label == null -> "准备执行"
+                        toolCall.name.startsWith("search_") ->
+                            summarizeQueryArguments(label, toolCall.argumentsJson)
+                        else -> label
+                    }
                 }
             }
         }
@@ -221,6 +236,22 @@ internal class AgentTraceFormatter {
                 add("${content.toByteArray(Charsets.UTF_8).size} 字节")
             }.joinToString(" · ")
         }.getOrDefault("更新记忆")
+
+    private fun summarizeSkillReadArguments(argumentsJson: String): String =
+        runCatching {
+            val skillId = JSONObject(argumentsJson).optString("skillId").trim()
+            if (skillId.isBlank()) return "读取技能"
+            val displayName = skillNameResolver?.invoke(skillId)?.takeIf { it.isNotBlank() } ?: skillId
+            "读取技能 · $displayName"
+        }.getOrDefault("读取技能")
+
+    private fun summarizeSkillReadResourceArguments(argumentsJson: String): String =
+        runCatching {
+            val skillId = JSONObject(argumentsJson).optString("skillId").trim()
+            if (skillId.isBlank()) return "读取技能资源"
+            val displayName = skillNameResolver?.invoke(skillId)?.takeIf { it.isNotBlank() } ?: skillId
+            "读取技能资源 · $displayName"
+        }.getOrDefault("读取技能资源")
 
     /** 结果成败供事件与 UI 状态使用，不再依赖摘要文本里的标记。 */
     fun isSuccessResult(result: AgentModelClient.ToolResult): Boolean =

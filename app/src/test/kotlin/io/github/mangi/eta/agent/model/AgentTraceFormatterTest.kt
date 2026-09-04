@@ -299,6 +299,81 @@ class AgentTraceFormatterTest {
     }
 
     @Test
+    fun skillsReadArgumentsShowSkillNameOrId() {
+        val skillMap = mapOf(
+            "reconbridge" to "ReconBridge 渗透测试",
+            "screen-audit" to "屏幕审计",
+        )
+        val customFormatter = AgentTraceFormatter(
+            skillNameResolver = { id -> skillMap[id] },
+        )
+
+        val readResolved = customFormatter.summarizeArguments(
+            AgentModelClient.ToolCall(
+                id = "call-1",
+                name = "skills_read",
+                argumentsJson = """{"skillId":"reconbridge"}""",
+            ),
+        )
+        assertEquals("读取技能 · ReconBridge 渗透测试", readResolved)
+
+        val readFallback = customFormatter.summarizeArguments(
+            AgentModelClient.ToolCall(
+                id = "call-2",
+                name = "skills_read",
+                argumentsJson = """{"skillId":"unknown-skill"}""",
+            ),
+        )
+        assertEquals("读取技能 · unknown-skill", readFallback)
+
+        val readResource = customFormatter.summarizeArguments(
+            AgentModelClient.ToolCall(
+                id = "call-3",
+                name = "skills_read_resource",
+                argumentsJson = """{"skillId":"screen-audit","relativePath":"guide.md"}""",
+            ),
+        )
+        assertEquals("读取技能资源 · 屏幕审计", readResource)
+    }
+
+    @Test
+    fun mcpToolArgumentsShowTitleAndServerName() {
+        val mcpTools = mapOf(
+            "mcp_server1_tool1" to AgentTraceFormatter.McpToolDisplayInfo(
+                serverName = "通用MCP",
+                toolName = "get_current_package",
+                toolTitle = "查看当前应用包名",
+            ),
+            "mcp_server1_tool2" to AgentTraceFormatter.McpToolDisplayInfo(
+                serverName = "通用MCP",
+                toolName = "list_packages",
+                toolTitle = "",
+            ),
+        )
+        val customFormatter = AgentTraceFormatter(
+            mcpToolResolver = { name -> mcpTools[name] },
+        )
+
+        val withTitle = customFormatter.summarizeArguments(
+            AgentModelClient.ToolCall(
+                id = "call-mcp-1",
+                name = "mcp_server1_tool1",
+                argumentsJson = """{}""",
+            ),
+        )
+        assertEquals("查看当前应用包名 · 通用MCP", withTitle)
+
+        val fallbackName = customFormatter.summarizeArguments(
+            AgentModelClient.ToolCall(
+                id = "call-mcp-2",
+                name = "mcp_server1_tool2",
+                argumentsJson = """{}""",
+            ),
+        )
+        assertEquals("list_packages · 通用MCP", fallbackName)
+    }
+
+    @Test
     fun searchAppsResultListsAppNames() {
         val summary = formatter.summarizeResult(
             "search_apps",
