@@ -485,6 +485,7 @@ private fun UserMessageBubble(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val coroutineScope = rememberCoroutineScope()
     @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val tooltipState = rememberTooltipState(isPersistent = true)
@@ -538,7 +539,7 @@ private fun UserMessageBubble(
             },
             state = tooltipState,
             focusable = true,
-            enableUserInput = actionsEnabled,
+            enableUserInput = false,
         ) {
             Column(
                 modifier = Modifier
@@ -561,6 +562,15 @@ private fun UserMessageBubble(
                             Modifier
                         }
                     )
+                    .clickable(enabled = actionsEnabled) {
+                        coroutineScope.launch {
+                            if (tooltipState.isVisible) {
+                                tooltipState.dismiss()
+                            } else {
+                                tooltipState.show()
+                            }
+                        }
+                    }
                     .padding(horizontal = 16.dp, vertical = 11.dp),
             ) {
                 if (message.images.isNotEmpty()) {
