@@ -1052,6 +1052,16 @@
   <string name="skills_delete_summary">删除“%1$s”后需要重新安装才能恢复。</string>
   <string name="skills_no_description">无描述</string>
   <string name="skills_delete_named">删除 %1$s</string>
+  <string name="skills_edit_named">编辑 %1$s</string>
+  <string name="route_skill_editor">编辑 Skill</string>
+  <string name="skills_save">保存</string>
+  <string name="skills_saved_success">已保存</string>
+  <string name="skills_save_failed">保存失败</string>
+  <string name="skills_not_found">未找到 Skill</string>
+  <string name="skills_unsaved_changes">有未保存的修改</string>
+  <string name="skills_discard_changes_title">放弃未保存的修改？</string>
+  <string name="skills_discard_changes_summary">当前内容已修改，离开将丢失这些更改。</string>
+  <string name="skills_discard">放弃</string>
   <string name="browser_no_external_app">没有应用可以打开当前网页</string>
   <string name="browser_reset">重置</string>
   <string name="browser_back">后退</string>

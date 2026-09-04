@@ -190,6 +190,7 @@ fun AgentSkillsScreen(
                             onToggle = { enabled ->
                                 onAction(AgentSkillsAction.ToggleSkill(skill.id, enabled))
                             },
+                            onEdit = { onAction(AgentSkillsAction.EditSkill(skill.id)) },
                             onDelete = { deleteTarget = skill },
                         )
                         if (index < userInstalled.lastIndex) PrefDivider()
@@ -289,6 +290,7 @@ private fun SkillSwitchRow(
     skill: SkillItemUi,
     enabled: Boolean,
     onToggle: (Boolean) -> Unit,
+    onEdit: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
 ) {
     val noDescription = stringResource(R.string.skills_no_description)
@@ -301,6 +303,22 @@ private fun SkillSwitchRow(
         summary = truncatedSummary,
         startAction = { SkillIcon(skill) },
         endActions = {
+            onEdit?.let {
+                IconButton(
+                    onClick = it,
+                    enabled = enabled,
+                    minWidth = 36.dp,
+                    minHeight = 36.dp,
+                ) {
+                    Icon(
+                        painter = painterResource(LucideR.drawable.lucide_ic_pencil),
+                        contentDescription = stringResource(R.string.skills_edit_named, skill.name),
+                        modifier = Modifier.size(20.dp),
+                        tint = MiuixTheme.colorScheme.onSurface,
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+            }
             onDelete?.let {
                 IconButton(
                     onClick = it,

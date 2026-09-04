@@ -184,4 +184,49 @@ class SkillRuntimeTest {
         assertTrue(externalMarker.isFile)
         assertEquals("external content must survive", externalMarker.readText())
     }
+
+    @Test
+    fun readAndUpdateUserSkillContent() {
+        val skillsRoot = temporaryFolder.newFolder("editable-skills")
+        val userSkillDir = File(skillsRoot, "custom-skill").also { it.mkdirs() }
+        val originalContent = """
+            ---
+            name: custom-skill
+            description: Original description.
+            ---
+
+            # Initial Body
+        """.trimIndent()
+        File(userSkillDir, "SKILL.md").writeText(originalContent)
+
+        val service = SkillIndexService(
+            context = RuntimeEnvironment.getApplication(),
+            skillsRoot = skillsRoot,
+        )
+
+        // Read content
+        val readContent = service.readSkillContent("custom-skill")
+        assertEquals(originalContent, readContent)
+
+        // Update content successfully
+        val updatedContent = """
+            ---
+            name: custom-skill
+            description: Updated description.
+            ---
+
+            # Updated Body
+        """.trimIndent()
+        val updateResult = service.updateSkillContent("custom-skill", updatedContent)
+        assertTrue(updateResult.isSuccess)
+        assertEquals(updatedContent, service.readSkillContent("custom-skill"))
+
+        val entry = service.findInstalledSkill("custom-skill")
+        assertEquals("Updated description.", entry?.description)
+
+        // Update with invalid content (missing frontmatter) should fail
+        val invalidResult = service.updateSkillContent("custom-skill", "Invalid content without frontmatter")
+        assertTrue(invalidResult.isFailure)
+        assertEquals(updatedContent, service.readSkillContent("custom-skill"))
+    }
 }

@@ -11,6 +11,7 @@ import org.json.JSONObject
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.LinkOption
+import java.nio.file.StandardCopyOption
 
 private const val BUILTIN_SKILL_MANIFEST_ASSET = "builtin_skills/manifest.json"
 internal const val BUILTIN_SKILL_SOURCE = "builtin"
@@ -268,6 +269,74 @@ class SkillIndexService(
             ?: entries.firstOrNull { SkillParser.normalizeSkillLookup(it.name) == normalized }
             ?: entries.firstOrNull { SkillParser.normalizeSkillLookup(it.skillFilePath) == normalized }
             ?: entries.firstOrNull { SkillParser.normalizeSkillLookup(it.rootPath) == normalized }
+    }
+
+    /**
+     * 读取指定用户安装 Skill 的 SKILL.md 原始内容。
+     * 若 Skill 不存在、非用户安装、或存在不安全符号链接，则返回 null。
+     */
+    fun readSkillContent(skillId: String): String? {
+        return withMutationLock {
+            synchronized(indexLock) {
+                val entry = listSkillsForManagement().firstOrNull { it.id == skillId && it.installed }
+                    ?: return@synchronized null
+                if (entry.source != USER_SOURCE) return@synchronized null
+                val targetDir = managedSkillDirectory(entry) ?: return@synchronized null
+                val skillFile = File(targetDir, "SKILL.md")
+                if (Files.isSymbolicLink(skillFile.toPath()) || !skillFile.isFile) return@synchronized null
+                runCatching { skillFile.readText() }.getOrNull()
+            }
+        }
+    }
+
+    /**
+     * 更新指定用户安装 Skill 的 SKILL.md 内容。
+     * 对 frontmatter 及基础元数据（如 name, description）进行有效性校验，并原子更新文件与索引缓存。
+     */
+    fun updateSkillContent(skillId: String, newContent: String): Result<Unit> {
+        return runCatching {
+            val parsed = SkillParser.parseSkillFileContent(newContent)
+                ?: throw IllegalArgumentException("SKILL.md 格式无效，必须包含由 --- 包围的 YAML frontmatter")
+            val name = parsed.frontmatter["name"]?.trim().orEmpty()
+            val description = parsed.frontmatter["description"]?.trim().orEmpty()
+            if (name.isBlank()) {
+                throw IllegalArgumentException("Skill name 不能为空")
+            }
+            if (description.isBlank()) {
+                throw IllegalArgumentException("Skill description 不能为空")
+            }
+            withMutationLock {
+                synchronized(indexLock) {
+                    val entry = listSkillsForManagement().firstOrNull { it.id == skillId && it.installed }
+                        ?: throw IllegalArgumentException("未找到已安装 skill：$skillId")
+                    if (entry.source != USER_SOURCE) {
+                        throw IllegalStateException("仅允许编辑用户安装的 Skill")
+                    }
+                    val targetDir = managedSkillDirectory(entry)
+                        ?: throw IllegalStateException("Skill 目录非法或受保护")
+                    val skillFile = File(targetDir, "SKILL.md")
+                    if (Files.isSymbolicLink(skillFile.toPath())) {
+                        throw IllegalStateException("Skill 文件包含符号链接，禁止修改")
+                    }
+
+                    // 原子写入：先写临时文件再原子替换
+                    val tempFile = File(targetDir, "SKILL.md.tmp.${System.currentTimeMillis()}")
+                    try {
+                        tempFile.writeText(newContent)
+                        Files.move(
+                            tempFile.toPath(),
+                            skillFile.toPath(),
+                            StandardCopyOption.REPLACE_EXISTING,
+                            StandardCopyOption.ATOMIC_MOVE,
+                        )
+                    } catch (e: Exception) {
+                        tempFile.delete()
+                        throw e
+                    }
+                    invalidateIndexLocked()
+                }
+            }
+        }
     }
 
     fun setSkillEnabled(skillId: String, enabled: Boolean): SkillIndexEntry {

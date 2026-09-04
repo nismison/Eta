@@ -363,9 +363,19 @@ fun AgentAppRoot(
                             AgentSkillsAction.CancelZipReplacement -> agentState.cancelSkillZipReplacement()
                             AgentSkillsAction.DismissNotice -> agentState.dismissSkillNotice()
                             is AgentSkillsAction.ToggleSkill -> agentState.toggleSkill(action.skillId, action.enabled)
+                            is AgentSkillsAction.EditSkill -> pushRoute(AppRoute.SkillEditor(action.skillId))
                             is AgentSkillsAction.DeleteSkill -> agentState.deleteSkill(action.skillId)
                             is AgentSkillsAction.ReinstallBuiltin -> agentState.reinstallBuiltin(action.skillId)
                         }
+                    },
+                )
+            }
+            entry<AppRoute.SkillEditor>(swipeDismiss = swipeDismiss) { route ->
+                io.github.mangi.eta.ui.screens.skills.AgentSkillEditorScreen(
+                    skillId = route.skillId,
+                    onBack = {
+                        agentState.refreshSkills()
+                        popRoute()
                     },
                 )
             }

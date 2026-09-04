@@ -308,6 +308,7 @@ private fun titleForRoute(route: AppRoute?): String = when (route) {
     is AppRoute.Terminal -> stringResource(R.string.route_terminal)
     is AppRoute.Tools -> stringResource(R.string.route_tools)
     is AppRoute.Skills -> stringResource(R.string.route_skills)
+    is AppRoute.SkillEditor -> stringResource(R.string.route_skill_editor)
     is AppRoute.Permissions -> stringResource(R.string.route_permissions)
     is AppRoute.SystemEnhance -> stringResource(R.string.route_system_enhancements)
     is AppRoute.Settings -> stringResource(R.string.route_settings)

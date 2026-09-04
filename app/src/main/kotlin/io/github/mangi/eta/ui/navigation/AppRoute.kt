@@ -24,6 +24,9 @@ sealed interface AppRoute : NavKey {
     data object Skills : AppRoute
 
     @Serializable
+    data class SkillEditor(val skillId: String) : AppRoute
+
+    @Serializable
     data object Permissions : AppRoute
 
     @Serializable

@@ -65,6 +65,7 @@ sealed interface AgentSkillsAction {
     data object CancelZipReplacement : AgentSkillsAction
     data object DismissNotice : AgentSkillsAction
     data class ToggleSkill(val skillId: String, val enabled: Boolean) : AgentSkillsAction
+    data class EditSkill(val skillId: String) : AgentSkillsAction
     data class DeleteSkill(val skillId: String) : AgentSkillsAction
     data class ReinstallBuiltin(val skillId: String) : AgentSkillsAction
 }
