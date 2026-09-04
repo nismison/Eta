@@ -434,6 +434,7 @@ internal fun AgentConversationMessages(
     val bottomFollowDecisions = remember(scrollState) {
         Channel<BottomFollowDecision>(Channel.CONFLATED)
     }
+    var hasRequestedInitialScroll by remember { mutableStateOf(false) }
 
     LaunchedEffect(
         bottomItemIndex,
@@ -442,11 +443,14 @@ internal fun AgentConversationMessages(
         isStreaming,
     ) {
         if (shouldRequestInitialBottom(
+                hasMessages = timelineEntries.isNotEmpty(),
                 isStreaming = isStreaming,
                 keepBottomAnchored = keepBottomAnchored,
                 isUserDragging = isUserDragging,
+                hasRequestedInitialScroll = hasRequestedInitialScroll,
             )
         ) {
+            hasRequestedInitialScroll = true
             scrollState.requestScrollToItem(bottomItemIndex)
         }
     }
@@ -929,10 +933,16 @@ internal fun resolveBottomFollowEnabled(
 ): Boolean = isStreaming && keepBottomAnchored && !isUserDragging
 
 internal fun shouldRequestInitialBottom(
+    hasMessages: Boolean,
     isStreaming: Boolean,
     keepBottomAnchored: Boolean,
     isUserDragging: Boolean,
-): Boolean = isStreaming && keepBottomAnchored && !isUserDragging
+    hasRequestedInitialScroll: Boolean = false,
+): Boolean {
+    if (!keepBottomAnchored || isUserDragging) return false
+    if (!hasRequestedInitialScroll && hasMessages) return true
+    return isStreaming
+}
 
 @Composable
 private fun EmptyChatState(
